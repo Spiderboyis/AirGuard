@@ -114,7 +114,7 @@ def pg_filter(expr: str) -> str:
         return str(expr)
     if len(val) >= 2 and val[0] == '"' and val[-1] == '"':
         return f"{op}.{val}"
-    if any(ch in val for ch in " ,.:()"):
+    if any(ch in val for ch in " ,()"):
         return op + '."' + val.replace('"', '""') + '"'
     return f"{op}.{val}"
 

@@ -27,14 +27,20 @@ def main(days=365):
         "sensor_id": s["sensor_id"], "last_seen": s["last_utc"], "source": "openaq",
     } for s in stations], "id")
     for s in stations:
-        rows = openaq.hourly_pm25(s["sensor_id"], start.isoformat(), end.isoformat())
-        if rows:
-            db.upsert(
-                "measurements",
-                [{"station_id": s["id"], "pollutant": "pm25", "unit": "µg/m³", **r} for r in rows],
-                "station_id,pollutant,ts",
-            )
-        print(s["name"], len(rows), "hourly values")
+        try:
+            if db.select("measurements", select="ts", station_id=f"eq.{s['id']}", limit=1):
+                print(f"Skipping {s['name']}, already in DB")
+                continue
+            rows = openaq.hourly_pm25(s["sensor_id"], start.isoformat(), end.isoformat())
+            if rows:
+                db.upsert(
+                    "measurements",
+                    [{"station_id": s["id"], "pollutant": "pm25", "unit": "µg/m³", **r} for r in rows],
+                    "station_id,pollutant,ts",
+                )
+            print(s["name"], len(rows), "hourly values")
+        except Exception as exc:
+            print(f"Skipping {s['name']} due to error: {exc}")
     fire_list = fires.fetch_range(start.date(), end.date())
     table = fires.sector_table(stations, fire_list, start.date(), end.date())
     archive_end = (end - timedelta(days=8)).date()

@@ -76,6 +76,8 @@ class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=500)
     profile: dict | None = None
     trip_id: str | None = None
+    from_place: str | None = None
+    to_place: str | None = None
     history: list[dict] = []
     demo: bool = False
 
@@ -160,6 +162,16 @@ def geocode(q: str = Query(min_length=2, max_length=80)):
     return {"lat": lat, "lon": lon}
 
 
+@app.get("/places/search")
+def search_places(q: str = Query(min_length=2, max_length=80)):
+    try:
+        results = service.search_places(q)
+        return {"results": results}
+    except Exception as exc:
+        raise HTTPException(500, str(exc)) from exc
+
+
+
 @app.get("/forecast")
 def forecast(lat: float = Query(ge=28.2, le=29.0), lon: float = Query(ge=76.7, le=77.7),
              horizon_h: float = Query(1, ge=0, le=24), demo: bool = False):
@@ -221,7 +233,15 @@ def agent_chat(req: ChatRequest, request: Request):
 
     history = req.history if isinstance(req.history, list) else []
     try:
-        return chat(req.message, req.profile, _history(history[-6:]), req.demo, req.trip_id)
+        return chat(
+            req.message,
+            req.profile,
+            _history(history[-6:]),
+            req.demo,
+            req.trip_id,
+            from_place=req.from_place,
+            to_place=req.to_place,
+        )
     except Exception as exc:
         print("agent failed:", repr(exc))
         hit = _cached(req.message) if req.demo else None

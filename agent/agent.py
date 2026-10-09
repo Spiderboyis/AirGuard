@@ -1,32 +1,160 @@
 import json
 import os
+import re
 
 from strands import Agent
 
 from agent.tools import TOOLS, reset_demo, set_demo
 
-SYSTEM_PROMPT = """You are AirGuard, a trip assistant that helps people in Delhi NCR choose routes and departure times that lower their exposure to PM2.5 air pollution.
+SYSTEM_PROMPT = """You are AirGuard, an intelligent clean-air transit copilot for Delhi NCR that helps travelers choose the healthiest routes and optimal departure windows to minimize PM2.5 inhalation.
 
 Rules:
-1. Every number you state (PM2.5, minutes, exposure index, percentages) must come from a tool result in this conversation. Never estimate or recall numbers from memory. If you lack a number, call a tool or say you cannot tell.
-2. If the message starts with a '[Current trip id: ...]' line, call get_trip_result first and answer from it; do not recompute that trip. To compare routes for a different trip call score_routes. To suggest when to leave call best_departure_time. Call geocode first when the user names places. Scheduled departure times are not supported in v1: AirGuard compares leaving now with waiting and leaving later, within the next few hours. If the user names a specific later clock time, say so and answer for leaving now versus waiting. Use now_ist only to say which clock time a recommended wait corresponds to. In a frozen demo snapshot, now_ist returns the snapshot's capture time, so give waits as minutes after that time.
-3. Exposure is an index for comparing options under stated assumptions, not a measured dose. Say 'estimated exposure' and express differences as percentages between options. Never describe a level as an official AQI category.
-4. Always mention the reliability score and the data age in plain words. If the trip result says it comes from a demo snapshot, say it is a frozen snapshot captured at the stated time, not live data. If reliability is below 0.5 or data_age_min is above 180, say the estimate is uncertain and why.
-5. The recommendation comes from the tool's decision rule, which uses the profile's sensitivity and the user's limits on extra minutes and waiting. Pass max_extra_min and max_wait_min from the profile line into best_departure_time. Report the recommended option, its time cost in minutes, and the limits that were used; never pick a different option yourself.
-6. Adapt to the profile line at the start of the message. For sensitivity 'sensitive' or 'high', pass the sensitivity to best_departure_time (it changes how much extra time the decision rule accepts, never the exposure estimate) and note that general guidance is to limit hard exertion outdoors on high-pollution days. Do not diagnose, give medical advice, or mention medication; suggest a doctor for health concerns.
-7. Keep answers short: a one-line recommendation first, then at most four bullets with the numbers behind it. No tables.
-8. If a tool returns an error, say in one sentence what failed and what the user can try.
-9. Only Delhi NCR and the modes walk, cycle and car are supported."""
+1. Every factual number (PM2.5, minutes, exposure index, percentages) must come directly from a tool result in this conversation. Never guess or hallucinate numbers.
+2. Routing & Trip Resolution Priority:
+   a. If '[Current trip id: ...]' is present, you MUST immediately call get_trip_result(trip_id=...) and answer directly from the evaluated routes and recommendation. DO NOT ask the user for places or locations.
+   b. If '[Current planned trip: from=..., to=...]' is present and no trip id exists, call geocode for each place, then call score_routes and best_departure_time. Do not ask for origin or destination.
+   c. If places or landmarks are mentioned in the message, call geocode and score_routes.
+   d. Only ask the user for locations if no trip id, planned trip, or place names exist in the conversation.
+3. Exposure Index: This is a relative exposure metric (PM2.5 × minutes × breathing intake factor) designed to rank transit alternatives. Explain exposure reductions clearly as percentages (e.g., 'Route B lowers your estimated PM2.5 exposure by 28% compared to Route A').
+4. Departure Timing: Scheduled clock times are not supported; explain the trade-off between leaving immediately vs waiting up to a few hours. Use now_ist if helpful to give the current IST time.
+5. Health & Sensitivity: For sensitive or critical profiles (asthma, elderly, respiratory concerns), highlight the cleanest route and recommend avoiding peak arterial road traffic and hard physical exertion during severe PM2.5 spikes. Do not diagnose or prescribe medicine.
+6. Communication style: Be direct, clear, and reassuring. Start with a clear 1-2 sentence recommendation, followed by concise bullet points with the supporting numbers (duration, exposure saving %, PM2.5 levels, and reliability).
+7. Only Delhi NCR and modes walk, cycle, and car are supported."""
+
+
+class _ToolFunc:
+    def __init__(self, name, args):
+        self.name = name
+        self.arguments = args
+
+
+class _MockToolCall:
+    def __init__(self, name, args):
+        self.function = _ToolFunc(name, args)
+
+
+def _parse_tool_json(text):
+    if not text:
+        return None, None
+    raw = text.strip()
+
+    # Strip code block wrappers
+    if raw.startswith("```json"):
+        raw = raw[7:]
+    elif raw.startswith("```"):
+        raw = raw[3:]
+    if raw.endswith("```"):
+        raw = raw[:-3]
+    raw = raw.strip()
+
+    # Search for <tool_call> tags
+    tc = re.search(r"<tool_call>\s*(.*?)\s*</tool_call>", raw, re.DOTALL)
+    if tc:
+        raw = tc.group(1).strip()
+
+    # Regex search for {"name": "...", "arguments": {...}}
+    match = re.search(
+        r'\{\s*"name"\s*:\s*"([a-zA-Z0-9_]+)"\s*,\s*"arguments"\s*:\s*(\{.*?\})\s*\}',
+        raw,
+        re.DOTALL,
+    )
+    if match:
+        try:
+            return match.group(1), json.loads(match.group(2))
+        except Exception:
+            pass
+
+    # Try standard JSON parsing
+    try:
+        obj = json.loads(raw)
+        if isinstance(obj, dict) and "name" in obj and "arguments" in obj:
+            args = obj["arguments"]
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except Exception:
+                    pass
+            return str(obj["name"]), args if isinstance(args, dict) else {}
+    except Exception:
+        pass
+
+    return None, None
 
 
 def make_model():
     if os.environ.get("LLM_BACKEND", "bedrock") == "ollama":
+        import ollama
         from strands.models.ollama import OllamaModel
-        return OllamaModel(
+
+        class SmartOllamaModel(OllamaModel):
+            async def stream(
+                self,
+                messages,
+                tool_specs=None,
+                system_prompt=None,
+                tool_choice=None,
+                **kwargs,
+            ):
+                request = self.format_request(messages, tool_specs, system_prompt)
+                client = ollama.AsyncClient(self.host, **self.client_args)
+
+                tool_calls_found = []
+                text_accum = []
+                event = None
+
+                response = await client.chat(**request)
+                async for event in response:
+                    if event.message.tool_calls:
+                        for tc in event.message.tool_calls:
+                            tool_calls_found.append(tc)
+                    if event.message.content:
+                        text_accum.append(event.message.content)
+
+                full_text = "".join(text_accum).strip()
+
+                # If Ollama didn't parse tool_calls into message.tool_calls, check if the model emitted a tool JSON
+                if not tool_calls_found and tool_specs:
+                    t_name, t_args = _parse_tool_json(full_text)
+                    if t_name:
+                        valid_names = [ts["name"] for ts in tool_specs]
+                        if t_name in valid_names:
+                            tool_calls_found.append(_MockToolCall(t_name, t_args or {}))
+
+                yield self.format_chunk({"chunk_type": "message_start"})
+
+                if tool_calls_found:
+                    for tc in tool_calls_found:
+                        yield self.format_chunk(
+                            {"chunk_type": "content_start", "data_type": "tool", "data": tc}
+                        )
+                        yield self.format_chunk(
+                            {"chunk_type": "content_delta", "data_type": "tool", "data": tc}
+                        )
+                        yield self.format_chunk(
+                            {"chunk_type": "content_stop", "data_type": "tool", "data": tc}
+                        )
+                    yield self.format_chunk({"chunk_type": "message_stop", "data": "tool_use"})
+                else:
+                    yield self.format_chunk({"chunk_type": "content_start", "data_type": "text"})
+                    yield self.format_chunk(
+                        {"chunk_type": "content_delta", "data_type": "text", "data": full_text}
+                    )
+                    yield self.format_chunk({"chunk_type": "content_stop", "data_type": "text"})
+                    yield self.format_chunk(
+                        {
+                            "chunk_type": "message_stop",
+                            "data": event.done_reason if event else "end_turn",
+                        }
+                    )
+
+        return SmartOllamaModel(
             host=os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
-            model_id=os.environ.get("OLLAMA_MODEL", "llama3.1"),
+            model_id=os.environ.get("OLLAMA_MODEL", "qwen2.5-coder:7b"),
+            temperature=0.1,
         )
+
     from strands.models import BedrockModel
+
     return BedrockModel(
         model_id=os.environ.get("BEDROCK_MODEL_ID", "amazon.nova-2-lite-v1:0"),
         region_name=os.environ.get("AWS_REGION", "us-east-1"),
@@ -69,7 +197,11 @@ def trace(messages):
                 ident = used.get("toolUseId")
                 if ident not in calls:
                     order.append(ident)
-                calls[ident] = {"name": used.get("name"), "input": _safe(used.get("input")), "output": None}
+                calls[ident] = {
+                    "name": used.get("name"),
+                    "input": _safe(used.get("input")),
+                    "output": None,
+                }
             elif "toolResult" in block:
                 result = block["toolResult"]
                 ident = result.get("toolUseId")
@@ -78,23 +210,40 @@ def trace(messages):
                     calls[ident]["output"] = text
                 else:
                     order.append(ident)
-                    calls[ident] = {"name": result.get("name") or "tool", "input": None, "output": text}
+                    calls[ident] = {
+                        "name": result.get("name") or "tool",
+                        "input": None,
+                        "output": text,
+                    }
     return [calls[ident] for ident in order if ident in calls]
 
 
-def chat(message, profile=None, history=None, demo=False, trip_id=None):
+def chat(
+    message,
+    profile=None,
+    history=None,
+    demo=False,
+    trip_id=None,
+    from_place=None,
+    to_place=None,
+):
     token = set_demo(demo)
     try:
-        ctx = ""
+        ctx_parts = []
+        if trip_id:
+            ctx_parts.append(f"[Current trip id: {trip_id}]")
+        if from_place and to_place:
+            ctx_parts.append(f"[Current planned trip: from='{from_place}', to='{to_place}']")
         if profile:
-            ctx = (
+            ctx_parts.append(
                 f"[Profile: sensitivity={profile.get('sensitivity', 'normal')}, "
                 f"usual mode={profile.get('mode', 'walk')}, "
                 f"max_extra_min={profile.get('max_extra_min', 15)}, "
-                f"max_wait_min={profile.get('max_wait_min', 120)}]\n"
+                f"max_wait_min={profile.get('max_wait_min', 120)}]"
             )
-        if trip_id:
-            ctx += f"[Current trip id: {trip_id}]\n"
+
+        ctx = ("\n".join(ctx_parts) + "\n\n") if ctx_parts else ""
+
         agent = Agent(
             model=make_model(),
             system_prompt=SYSTEM_PROMPT,
@@ -104,6 +253,10 @@ def chat(message, profile=None, history=None, demo=False, trip_id=None):
         )
         start = len(agent.messages)
         result = agent(ctx + message)
-        return {"answer": str(result).strip(), "tool_calls": trace(agent.messages[start:]), "cached": False}
+        return {
+            "answer": str(result).strip(),
+            "tool_calls": trace(agent.messages[start:]),
+            "cached": False,
+        }
     finally:
         reset_demo(token)

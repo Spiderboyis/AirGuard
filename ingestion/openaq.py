@@ -37,17 +37,22 @@ def get(path, **params):
     last = None
     for _ in range(5):
         time.sleep(1.1)  # stay under 60 requests/minute
-        response = httpx.get(BASE + path, params=params, headers={"X-API-Key": key}, timeout=30)
-        last = response
-        if response.status_code == 429:
-            time.sleep(int(response.headers.get("x-ratelimit-reset", 60)) + 1)
-            continue
-        if response.status_code >= 500:
+        try:
+            response = httpx.get(BASE + path, params=params, headers={"X-API-Key": key}, timeout=30)
+            last = response
+            if response.status_code == 429:
+                time.sleep(int(response.headers.get("x-ratelimit-reset", 60)) + 1)
+                continue
+            if response.status_code >= 500 or response.status_code == 408:
+                time.sleep(2)
+                continue
+            response.raise_for_status()
+            return response.json()
+        except httpx.RequestError as exc:
+            print(f"OpenAQ request error: {exc}. Retrying...")
             time.sleep(2)
             continue
-        response.raise_for_status()
-        return response.json()
-    detail = (last.text[:200] if last is not None else "")
+    detail = (last.text[:200] if last is not None else "No response")
     raise RuntimeError(f"OpenAQ kept failing. {detail}")
 
 

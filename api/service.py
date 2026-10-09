@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 import statistics
 import threading
 import time
@@ -17,14 +18,6 @@ from engine.exposure import MODES, Station, best_departure, idw, score_route
 ORS = "https://api.openrouteservice.org/v2/directions"
 OSRM = "https://router.project-osrm.org/route/v1"
 MAX_OBS_AGE_MIN = 360
-PLACES = {
-    "connaught place": (28.6315, 77.2167),
-    "india gate": (28.6129, 77.2295),
-    "hauz khas": (28.5494, 77.2001),
-    "du north campus": (28.6889, 77.2100),
-    "lodhi garden": (28.5931, 77.2197),
-    "nehru place": (28.5491, 77.2519),
-}
 _CACHE = {}
 _LAST_GEO = [0.0]
 _GEO_LOCK = threading.Lock()
@@ -130,10 +123,16 @@ def snapshot_info():
     return {"captured_at": snap["captured_at"], "data_age_at_capture_min": snap.get("data_age_at_capture_min")}
 
 
+def _clean_query(q: str) -> str:
+    """Normalize user input to help OpenStreetMap find Indian Metro Stations."""
+    q = re.sub(r'(?i)\bmetro\s+station\b', 'station', q)
+    q = re.sub(r'(?i)\bmetro\b$', 'station', q)
+    return q
+
+
 def geocode(q):
     key = q.strip().lower()
-    if key in PLACES:
-        return PLACES[key]
+    search_q = _clean_query(q)
     hit = db.select("route_cache", select="response", key=f"eq.geo:{key}")
     if hit:
         return tuple(hit[0]["response"])
@@ -146,7 +145,14 @@ def geocode(q):
         response = httpx.get(
             "https://nominatim.openstreetmap.org/search",
             timeout=6,
-            params={"q": q + ", Delhi", "format": "jsonv2", "limit": 1, "countrycodes": "in"},
+            params={
+                "q": search_q,
+                "format": "jsonv2",
+                "limit": 1,
+                "countrycodes": "in",
+                "viewbox": "76.7,29.0,77.7,28.2",
+                "bounded": "1"
+            },
             headers={"User-Agent": f"AirGuard-hackathon/0.1 ({email})"},
         )
     response.raise_for_status()
@@ -155,6 +161,46 @@ def geocode(q):
     point = [float(response.json()[0]["lat"]), float(response.json()[0]["lon"])]
     db.upsert("route_cache", [{"key": f"geo:{key}", "response": point}], "key")
     return tuple(point)
+
+
+def search_places(q: str):
+    key = q.strip().lower()
+    search_q = _clean_query(q)
+    hit = db.select("route_cache", select="response", key=f"eq.search:{key}")
+    if hit:
+        return hit[0]["response"]
+    with _GEO_LOCK:
+        wait = 1.1 - (time.time() - _LAST_GEO[0])
+        if wait > 0:
+            time.sleep(wait)
+        _LAST_GEO[0] = time.time()
+        email = cfg().get("CONTACT_EMAIL") or "airguard-local@example.com"
+        response = httpx.get(
+            "https://nominatim.openstreetmap.org/search",
+            timeout=6,
+            params={
+                "q": search_q,
+                "format": "jsonv2",
+                "limit": 5,
+                "countrycodes": "in",
+                "viewbox": "76.7,29.0,77.7,28.2",
+                "bounded": "1"
+            },
+            headers={"User-Agent": f"AirGuard-hackathon/0.1 ({email})"},
+        )
+    if response.status_code != 200 or not response.json():
+        return []
+    
+    results = []
+    for item in response.json():
+        results.append({
+            "name": item.get("name", item.get("display_name", "").split(",")[0]),
+            "display_name": item.get("display_name", ""),
+            "lat": float(item["lat"]),
+            "lon": float(item["lon"]),
+        })
+    db.upsert("route_cache", [{"key": f"search:{key}", "response": results}], "key")
+    return results
 
 
 def _fixtures():

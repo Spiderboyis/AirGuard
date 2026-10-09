@@ -15,3 +15,4 @@ models/
 data/
 .DS_Store
 *.egg-info/
+!frontend/public/maplibre-gl-worker.mjs

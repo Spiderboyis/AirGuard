@@ -26,10 +26,17 @@ def _j(value):
 
 
 def _check(lat, lon, mode="walk"):
-    if not (28.2 <= lat <= 29.0 and 76.7 <= lon <= 77.7):
+    try:
+        flat = float(lat)
+        flon = float(lon)
+    except (ValueError, TypeError):
+        raise ValueError("Latitude and longitude must be numbers.")
+    if not (28.2 <= flat <= 29.0 and 76.7 <= flon <= 77.7):
         raise ValueError("Only Delhi NCR is supported.")
-    if mode not in MODES:
+    m = str(mode).lower()
+    if m not in MODES:
         raise ValueError("Mode must be walk, cycle or car.")
+    return flat, flon, m
 
 
 @tool
@@ -67,8 +74,9 @@ def get_forecast(lat: float, lon: float, hours_ahead: float = 1.0) -> str:
         hours_ahead: Hours from now, between 0 and 24.
     """
     try:
-        _check(lat, lon)
-        return _j(service.forecast_at(lat, lon, min(max(hours_ahead, 0), 24), _demo.get()))
+        flat, flon, _ = _check(lat, lon)
+        ha = float(hours_ahead)
+        return _j(service.forecast_at(flat, flon, min(max(ha, 0), 24), _demo.get()))
     except Exception as exc:
         return _j({"error": str(exc)})
 
@@ -85,12 +93,12 @@ def score_routes(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon
         mode: One of walk, cycle, car.
     """
     try:
-        _check(origin_lat, origin_lon, mode)
-        _check(dest_lat, dest_lon, mode)
+        olat, olon, mode_val = _check(origin_lat, origin_lon, mode)
+        dlat, dlon, _ = _check(dest_lat, dest_lon, mode_val)
         res = service.score_trip(
-            {"lat": origin_lat, "lon": origin_lon},
-            {"lat": dest_lat, "lon": dest_lon},
-            mode, 0.0, _demo.get(),
+            {"lat": olat, "lon": olon},
+            {"lat": dlat, "lon": dlon},
+            mode_val, 0.0, _demo.get(),
         )
         keep = ("id", "duration_min", "distance_km", "exposure_index", "mean_pm25", "risk", "confidence", "is_cleanest", "is_fastest")
         return _j({
@@ -120,16 +128,20 @@ def best_departure_time(origin_lat: float, origin_lon: float, dest_lat: float, d
         max_extra_minutes: The most extra total minutes the user will accept.
     """
     try:
-        _check(origin_lat, origin_lon, mode)
-        _check(dest_lat, dest_lon, mode)
-        if sensitivity not in ("normal", "sensitive", "high"):
-            sensitivity = "normal"
+        olat, olon, mode_val = _check(origin_lat, origin_lon, mode)
+        dlat, dlon, _ = _check(dest_lat, dest_lon, mode_val)
+        sens_str = str(sensitivity).lower()
+        if sens_str not in ("normal", "sensitive", "high"):
+            sens_str = "normal"
+        wh = float(window_hours)
+        mwm = int(float(max_wait_minutes))
+        mem = int(float(max_extra_minutes))
         res = service.departure(
-            {"lat": origin_lat, "lon": origin_lon},
-            {"lat": dest_lat, "lon": dest_lon},
-            mode, 0.0, min(max(window_hours, 0.25), 6),
-            max(0, min(int(max_wait_minutes), 720)),
-            _demo.get(), sensitivity, max(0, min(int(max_extra_minutes), 120)),
+            {"lat": olat, "lon": olon},
+            {"lat": dlat, "lon": dlon},
+            mode_val, 0.0, min(max(wh, 0.25), 6),
+            max(0, min(mwm, 720)),
+            _demo.get(), sens_str, max(0, min(mem, 120)),
         )
         return _j({
             "baseline": res["baseline"],

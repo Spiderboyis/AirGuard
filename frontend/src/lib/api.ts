@@ -42,6 +42,8 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 const post = (body: unknown): RequestInit => ({ method: "POST", body: JSON.stringify(body) });
 
 export const geocode = (q: string) => call<Pt>(`/geocode?q=${encodeURIComponent(q)}`);
+export type PlaceResult = { name: string; display_name: string; lat: number; lon: number };
+export const searchPlaces = (q: string) => call<{ results: PlaceResult[] }>(`/places/search?q=${encodeURIComponent(q)}`);
 export const scoreRoutes = (b: unknown) =>
   call<{ routes: Route[]; data_age_min: number | null; mode_factor: number }>("/routes/score", post(b));
 export const bestDeparture = (b: unknown) => call<DepartureResult>("/departure/best", post(b));
