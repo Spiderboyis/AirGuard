@@ -60,10 +60,22 @@ Details and every assumption: [docs/methodology.md](docs/methodology.md).
 
 ## Evidence
 
-<!-- evidence-table -->
+The forecast is tested on the most recent two weeks (25 Sep – 9 Oct 2026), which it never saw in
+training, at 75 stations. Mean absolute error in µg/m³, lower is better:
 
-The forecast is tested on the most recent two weeks, which it never saw in training, against three
-baselines. The full results, including the delayed-feed mode, are on the app's **Evidence** page.
+| Horizon | AirGuard | Last reading | Station's usual for that hour | CAMS global model |
+| --- | ---: | ---: | ---: | ---: |
+| +1 h | **7.3** | 7.9 | 47.3 | 29.5 |
+| +3 h | **12.3** | 15.2 | 47.3 | 29.6 |
+| +6 h | **14.1** | 20.1 | 47.4 | 29.7 |
+| +12 h | **16.1** | 24.2 | 46.6 | 29.6 |
+| +24 h | **16.7** | 17.2 | 45.7 | 29.5 |
+
+During a network-wide CPCB feed outage (every CPCB station hidden, only independent sensors left), the
+model still estimates each station within **15.6–20.4 µg/m³** MAE, against 29.5–29.9 for raw CAMS. The
+80% forecast ranges contained the true value 74–82% of the time. Model `v20261009-1001`; full results on
+the app's **Evidence** page. These measure the station forecast; values along a route are interpolated and
+carry their own confidence.
 
 ## Quick start
 

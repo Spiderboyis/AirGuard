@@ -75,7 +75,7 @@ def upsert(table: str, rows: Iterable[dict], conflict: Sequence[str], update: Se
     rows = list(rows)
     if not rows:
         return 0
-    cols = list(rows[0].keys())
+    cols = list(dict.fromkeys(k for r in rows for k in r))  # union of keys, first-seen order
     unique = {tuple(r.get(k) for k in conflict): r for r in rows}
     rows = list(unique.values())
     update = [c for c in (update if update is not None else cols) if c not in conflict]
