@@ -53,8 +53,8 @@ class OpenAQ:
             if r.status_code == 429:
                 time.sleep(int(r.headers.get("x-ratelimit-reset", 30)) + 1)
                 continue
-            if r.status_code >= 500:
-                time.sleep(2 * (attempt + 1))
+            if r.status_code >= 500 or r.status_code == 408:
+                time.sleep(3 * (attempt + 1))
                 continue
             if r.status_code == 401:
                 raise OpenAQError("OpenAQ rejected the API key (401).")
@@ -108,24 +108,31 @@ class OpenAQ:
                 best = {"id": s["id"], "last": last, "first": _parse_ts((s.get("datetimeFirst") or {}).get("utc"))}
         return best
 
-    def hourly(self, sensor_id: int, start: datetime, end: datetime) -> list[dict]:
+    def hourly(self, sensor_id: int, start: datetime, end: datetime, window_days: int = 30) -> list[dict]:
         """Hourly PM2.5 averages as [{ts, value}], ts = the UTC hour the average represents.
 
-        CPCB averages run on IST hours (UTC :30), so each period is labelled by its midpoint
-        floored to the hour; this puts every provider on the same hourly grid.
+        Fetched in 30-day windows (one page each) because deep pagination on long ranges times out.
+        CPCB averages run on IST hours (UTC :30), so each period is labelled by its midpoint floored
+        to the hour; this puts every provider on the same hourly grid.
         """
-        rows, page = [], 1
-        while True:
-            j = self.get(f"/sensors/{sensor_id}/hours", datetime_from=start.isoformat(),
-                         datetime_to=end.isoformat(), limit=1000, page=page)
-            for r in j["results"]:
-                v = r.get("value")
-                if v is None or not (VALID_RANGE[0] <= v <= VALID_RANGE[1]):
-                    continue
-                t0 = _parse_ts(r["period"]["datetimeFrom"]["utc"])
-                t1 = _parse_ts(r["period"]["datetimeTo"]["utc"])
-                mid = t0 + (t1 - t0) / 2
-                rows.append({"ts": mid.replace(minute=0, second=0, microsecond=0), "value": float(v)})
-            if len(j["results"]) < 1000:
-                return rows
-            page += 1
+        rows = []
+        a = start
+        while a < end:
+            b = min(end, a + timedelta(days=window_days))
+            page = 1
+            while True:
+                j = self.get(f"/sensors/{sensor_id}/hours", datetime_from=a.isoformat(), datetime_to=b.isoformat(),
+                             limit=1000, page=page)
+                for r in j["results"]:
+                    v = r.get("value")
+                    if v is None or not (VALID_RANGE[0] <= v <= VALID_RANGE[1]):
+                        continue
+                    t0 = _parse_ts(r["period"]["datetimeFrom"]["utc"])
+                    t1 = _parse_ts(r["period"]["datetimeTo"]["utc"])
+                    mid = t0 + (t1 - t0) / 2
+                    rows.append({"ts": mid.replace(minute=0, second=0, microsecond=0), "value": float(v)})
+                if len(j["results"]) < 1000:
+                    break
+                page += 1
+            a = b
+        return rows

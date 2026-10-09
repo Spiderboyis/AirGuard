@@ -52,7 +52,11 @@ def sync_measurements(oaq: OpenAQ, stations: list[dict], default_start: datetime
     for i, s in enumerate(stations, 1):
         since = newest.get(s["id"])
         start = max(default_start, since - timedelta(hours=3)) if since else default_start
-        rows = oaq.hourly(s["sensor_id"], start, end)
+        try:
+            rows = oaq.hourly(s["sensor_id"], start, end)
+        except Exception as e:  # one bad station must not stop the run
+            log.warning("[%d/%d] %s: skipped (%s)", i, len(stations), s["name"], e)
+            continue
         db.upsert("measurements", [{"station_id": s["id"], "pollutant": "pm25", "unit": "µg/m³",
                                     "ts": r["ts"], "value": r["value"]} for r in rows],
                   ["station_id", "pollutant", "ts"])
