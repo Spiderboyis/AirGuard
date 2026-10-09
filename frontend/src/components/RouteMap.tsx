@@ -38,12 +38,16 @@ export default function RouteMap({
   const [isStyleLoading, setIsStyleLoading] = useState(false);
   const [bearing, setBearing] = useState(0);
 
+  const drawRef = useRef<() => void>(() => {});
+  const mapThemeRef = useRef<"dark" | "light">("dark");
+  mapThemeRef.current = mapTheme;
+
   const selectedRoute = routes.find((r) => r.id === selected) ?? routes[0];
 
   // Draw or redraw route polylines and indicators
   const draw = useCallback(() => {
     const current = map.current;
-    if (!current || !current.isStyleLoaded() || levels.length === 0) return;
+    if (!current || !current.getStyle() || levels.length === 0) return;
 
     // Remove previous AirGuard layers and sources
     const style = current.getStyle();
@@ -66,6 +70,8 @@ export default function RouteMap({
       a.id === selected ? 1 : b.id === selected ? -1 : 0
     );
 
+    const isLight = mapThemeRef.current === "light";
+
     for (const route of sortedRoutes) {
       const on = route.id === selected;
       route.geometry.forEach(([x, y]) => bounds.extend([x, y]));
@@ -86,7 +92,7 @@ export default function RouteMap({
         source: `rt-${route.id}-base`,
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-color": on ? "#ffffff" : "#27272a",
+          "line-color": on ? (isLight ? "#18181b" : "#ffffff") : (isLight ? "#a1a1aa" : "#27272a"),
           "line-width": on ? 7 : 3.5,
           "line-opacity": on ? 0.95 : 0.35,
         },
@@ -185,7 +191,7 @@ export default function RouteMap({
             "#ffffff",
           ],
           "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
+          "circle-stroke-color": isLight ? "#18181b" : "#ffffff",
         },
       });
     }
@@ -200,6 +206,10 @@ export default function RouteMap({
       fitted.current = signature;
     }
   }, [routes, selected, levels, onSelect]);
+
+  useEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
 
   // Mount map once on load
   useEffect(() => {
@@ -219,8 +229,15 @@ export default function RouteMap({
       setBearing(Math.round(created.getBearing()));
     });
 
+    // Handle initial load and every theme / style switch
+    created.on("style.load", () => {
+      setIsStyleLoading(false);
+      drawRef.current();
+    });
+
     created.once("load", () => {
       setMapLoaded(true);
+      drawRef.current();
     });
 
     map.current = created;
@@ -236,12 +253,7 @@ export default function RouteMap({
   useEffect(() => {
     const current = map.current;
     if (!current || !mapLoaded || levels.length === 0) return;
-
-    if (current.isStyleLoaded()) {
-      draw();
-    } else {
-      current.once("style.load", draw);
-    }
+    draw();
   }, [draw, mapLoaded, levels.length]);
 
   // Map Control Actions with guaranteed event isolation
@@ -302,14 +314,11 @@ export default function RouteMap({
     e.stopPropagation();
     if (!map.current || isStyleLoading) return;
     const next = mapTheme === "dark" ? "light" : "dark";
+    mapThemeRef.current = next;
     setMapTheme(next);
     setIsStyleLoading(true);
     const nextStyle = next === "dark" ? DARK_STYLE : LIGHT_STYLE;
-    map.current.setStyle(nextStyle);
-    map.current.once("style.load", () => {
-      setIsStyleLoading(false);
-      draw();
-    });
+    map.current.setStyle(nextStyle, { diff: false });
   };
 
   return (
