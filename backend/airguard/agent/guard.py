@@ -56,6 +56,8 @@ def _times(obj) -> set[str]:
 def check(answer: str, tool_outputs: list, user_text: str = "") -> tuple[bool, list[str]]:
     sources = _source_numbers(tool_outputs) | set(_numbers(user_text))
     candidates = sources | {abs(v) for v in sources}
+    # Fractions are often stated as percentages (confidence 0.67 -> "67%").
+    candidates |= {round(v * 100, 1) for v in candidates if 0 < abs(v) <= 1}
     candidates |= {round(v) for v in candidates} | {round(v, 1) for v in candidates}
     bad = []
     for v in _numbers(answer):

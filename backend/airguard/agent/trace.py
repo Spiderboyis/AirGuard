@@ -33,6 +33,12 @@ def traced(fn: Callable) -> Callable:
     def wrapper(*args, **kwargs):
         tr = current.get()
         inputs = {**{f"arg{i}": a for i, a in enumerate(args)}, **kwargs}
+        # Small models sometimes repeat an identical call; hand back the earlier result and a nudge.
+        if tr:
+            prev = next((c for c in tr.calls if c["name"] == fn.__name__ and c["input"] == inputs and c["ok"]), None)
+            if prev is not None:
+                return json.dumps({"note": "You already have this result. Answer the user now.",
+                                   "result": prev["output"]}, ensure_ascii=False, default=str)
         if tr:
             tr.emit({"type": "tool_start", "name": fn.__name__, "input": inputs})
         t0 = time.monotonic()

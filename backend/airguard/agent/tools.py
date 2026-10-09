@@ -105,3 +105,12 @@ def best_departure_time(origin_lat: float, origin_lon: float, dest_lat: float, d
 
 
 ALL_TOOLS = [now_ist, geocode, get_trip_result, get_forecast, score_routes, best_departure_time]
+
+# Small local models choose tools far more reliably from a short list. With a trip on screen the
+# questions are about that trip, so the route-planning tools are left out.
+TRIP_TOOLS = [get_trip_result, now_ist]
+PLANNING_TOOLS = [geocode, best_departure_time, score_routes, get_forecast, now_ist]
+
+
+def tools_for(trip_id: str | None) -> list:
+    return TRIP_TOOLS if trip_id else PLANNING_TOOLS

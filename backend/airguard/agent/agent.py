@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 
 from airguard.agent import explain, guard
 from airguard.agent.prompt import system_prompt
-from airguard.agent.tools import ALL_TOOLS, get_trip_result
+from airguard.agent.tools import get_trip_result, tools_for
 from airguard.agent.trace import Trace, current
 from airguard.config import settings
 from airguard.services import trips
@@ -74,9 +74,15 @@ def _fallback(message: str, trip_id: str | None, tr: Trace, reason: str) -> dict
 def _finish(text: str, message: str, trip_id: str | None, tr: Trace) -> dict:
     text = THINK.sub("", text).strip()
     ok, bad = guard.check(text, [c["output"] for c in tr.calls], message)
-    if text and ok:
+    last_failed = bool(tr.calls) and not tr.calls[-1]["ok"]
+    if text and ok and not (trip_id and last_failed):
         return {"answer": text, "source": "model", "grounded": True, "ungrounded_numbers": []}
-    reason = "empty answer" if not text else f"ungrounded numbers: {', '.join(bad)}"
+    if not text:
+        reason = "empty answer"
+    elif not ok:
+        reason = f"ungrounded numbers: {', '.join(bad)}"
+    else:
+        reason = f"tool {tr.calls[-1]['name']} failed"
     out = _fallback(message, trip_id, tr, reason)
     out.update(grounded=True, ungrounded_numbers=bad)
     return out
@@ -97,15 +103,15 @@ async def stream(message: str, profile: dict | None, trip_id: str | None,
         else:
             from strands import Agent
 
-            agent = Agent(model=model, tools=ALL_TOOLS, system_prompt=system_prompt(profile, trip_id),
+            agent = Agent(model=model, tools=tools_for(trip_id), system_prompt=system_prompt(profile, trip_id),
                           messages=_history_messages(history), callback_handler=None)
             text_parts: list[str] = []
             done = asyncio.Event()
             error: list[BaseException] = []
 
-            async def run():
+            async def run(prompt: str):
                 try:
-                    async for ev in agent.stream_async(message):
+                    async for ev in agent.stream_async(prompt):
                         if "data" in ev and isinstance(ev["data"], str):
                             text_parts.append(ev["data"])
                             tr.queue.put_nowait({"type": "token", "text": ev["data"]})
@@ -119,14 +125,22 @@ async def stream(message: str, profile: dict | None, trip_id: str | None,
                 finally:
                     done.set()
 
-            task = asyncio.create_task(run())
-            while not (done.is_set() and tr.queue.empty()):
-                try:
-                    ev = await asyncio.wait_for(tr.queue.get(), timeout=0.2)
-                    yield ev
-                except TimeoutError:
-                    continue
-            await task
+            for attempt in range(2):
+                done.clear()
+                task = asyncio.create_task(run(message if attempt == 0 else (
+                    f"First call get_trip_result with trip_id={trip_id}, then answer: {message}")))
+                while not (done.is_set() and tr.queue.empty()):
+                    try:
+                        ev = await asyncio.wait_for(tr.queue.get(), timeout=0.2)
+                        yield ev
+                    except TimeoutError:
+                        continue
+                await task
+                # Small models sometimes answer a follow-up from memory; with a trip on screen, insist once.
+                if error or tr.calls or not trip_id:
+                    break
+                text_parts.clear()
+                tr.queue.put_nowait({"type": "reset"})
             if error:
                 log.warning("agent failed: %r", error[0])
                 result = _fallback(message, trip_id, tr, f"model error: {error[0].__class__.__name__}")

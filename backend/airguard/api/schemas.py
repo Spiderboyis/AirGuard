@@ -283,4 +283,6 @@ class ChatResponse(BaseModel):
     grounded: bool
     ungrounded_numbers: list[str] = []
     source: Literal["model", "fallback", "cache"]
+    fallback_reason: str | None = None
     model: str | None = None
+    ms: int | None = None

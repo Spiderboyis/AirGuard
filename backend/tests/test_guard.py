@@ -27,3 +27,8 @@ def test_user_numbers_are_allowed():
 def test_small_counts_are_safe():
     ok, _ = check("I compared 3 routes for PM2.5.", TOOLS)
     assert ok
+
+
+def test_fraction_as_percentage():
+    ok, bad = check("Confidence is 71%.", TOOLS)
+    assert ok, bad
