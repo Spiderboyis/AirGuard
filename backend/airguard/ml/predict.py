@@ -45,9 +45,19 @@ def load_models() -> tuple[dict, dict] | None:
     return meta, models
 
 
+def issue_hour(now: datetime) -> pd.Timestamp:
+    """Forecasts are issued from the newest hour that has readings (OpenAQ delivers even live
+    sensors about two hours late), so features look exactly like they did in the backtest. The
+    API interpolates "now" between that hour and the following horizons."""
+    floor = pd.Timestamp(now).tz_convert("UTC").floor("h")
+    newest = db.query("select max(ts) as ts from measurements where pollutant = 'pm25' and ts > %s",
+                      ((floor - pd.Timedelta(hours=6)).to_pydatetime(),))[0]["ts"]
+    return min(floor, pd.Timestamp(newest).tz_convert("UTC")) if newest else floor
+
+
 def forecast(now: datetime | None = None) -> list[dict]:
     now = now or datetime.now(timezone.utc)
-    t0 = pd.Timestamp(now).tz_convert("UTC").floor("h")
+    t0 = issue_hour(now)
     x = data.load_inputs((t0 - pd.Timedelta(hours=100)).to_pydatetime(), (t0 + pd.Timedelta(hours=26)).to_pydatetime())
     loaded = load_models()
     version = loaded[0]["version"] if loaded else "fallback"

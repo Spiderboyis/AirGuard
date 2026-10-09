@@ -87,7 +87,10 @@ def upsert(table: str, rows: Iterable[dict], conflict: Sequence[str], update: Se
            f"on conflict ({', '.join(conflict)}) {action}")
 
     def adapt(v):
-        return Jsonb(v) if isinstance(v, (dict, list)) else v
+        # dicts and lists of objects are JSON; lists of scalars become Postgres arrays.
+        if isinstance(v, dict) or (isinstance(v, list) and (not v or any(isinstance(i, (dict, list)) for i in v))):
+            return Jsonb(v)
+        return v
 
     def go(c: psycopg.Connection):
         with c.cursor() as cur:

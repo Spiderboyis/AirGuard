@@ -9,6 +9,10 @@ CPCB feeds on OpenAQ sometimes arrive many hours late. When a station's newest o
 older than STALE_AFTER_H, its own lag features are blanked and the model leans on CAMS, weather and
 any neighbours that are still reporting. Training blanks the same features on a random share of
 rows, so the model has learned exactly this situation.
+
+A delay usually hits the whole CPCB network at once, leaving only independent sensors (AirGradient,
+the US Embassy's AirNow monitor) reporting. `outage` rows simulate that: their neighbour features
+are computed from independent sensors only.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from airguard.geo import haversine_matrix
 HORIZONS = [0, 1, 3, 6, 12, 24]
 STALE_AFTER_H = 3
 NEIGHBOUR_KM = 30.0
+INDEPENDENT_PROVIDERS = {"AirGradient", "AirNow"}  # feeds that don't go through CPCB
 
 OWN_FEATURES = ["lag0", "lag1", "lag2", "lag3", "lag6", "lag12", "lag24", "roll3", "roll24", "delta3",
                 "cams_bias72"]
@@ -51,7 +56,9 @@ class Inputs:
 
 def build_inputs(stations: list[dict], measurements: list[dict], weather: list[dict],
                  index: pd.DatetimeIndex | None = None) -> Inputs:
-    st = pd.DataFrame(stations).set_index("id")[["lat", "lon", "is_monitor"]]
+    st = pd.DataFrame(stations).set_index("id")
+    st["independent"] = st.get("provider", pd.Series(index=st.index, dtype=object)).isin(INDEPENDENT_PROVIDERS)
+    st = st[["lat", "lon", "is_monitor", "independent"]]
     ids = list(st.index)
     m = pd.DataFrame(measurements)
     w = pd.DataFrame(weather)
@@ -103,11 +110,13 @@ def _neighbours(pm: pd.DataFrame, st: pd.DataFrame) -> tuple[pd.DataFrame, pd.Da
 
 
 def build_frame(x: Inputs, t0s: pd.DatetimeIndex, horizon: int, mask: np.ndarray | None = None,
-                with_target: bool = True) -> pd.DataFrame:
+                with_target: bool = True, outage: np.ndarray | None = None) -> pd.DataFrame:
     """Long frame of features (and target) for every station at each issue time in `t0s`.
 
     `mask` (bool per output row) blanks own-station features to simulate a delayed feed; it is
     also applied automatically wherever a station's newest observation is older than STALE_AFTER_H.
+    `outage` (bool per output row) additionally limits neighbours to independent sensors, as in a
+    network-wide CPCB feed delay.
     """
     pm = x.pm25
     ids = list(pm.columns)
@@ -128,6 +137,9 @@ def build_frame(x: Inputs, t0s: pd.DatetimeIndex, horizon: int, mask: np.ndarray
     fresh = pm.where(age <= STALE_AFTER_H)
     idw, nearest, n15 = _neighbours(fresh, x.stations)
     feats["nbr_idw"], feats["nbr_nearest_km"], feats["nbr_n15"] = idw, nearest, n15
+    if outage is not None and outage.any():
+        indep = fresh.loc[:, x.stations["independent"].to_numpy()].reindex(columns=fresh.columns)
+        o_idw, o_nearest, o_n15 = _neighbours(indep, x.stations)
 
     feats["cams_t0"] = x.cams
     feats["cams_target"] = x.cams.shift(-horizon)
@@ -159,8 +171,14 @@ def build_frame(x: Inputs, t0s: pd.DatetimeIndex, horizon: int, mask: np.ndarray
     out["is_monitor"] = np.tile(x.stations["is_monitor"].to_numpy(dtype="float32"), n_t)
     out["obs_age_h"] = age.reindex(t0s).to_numpy(dtype="float32").reshape(-1)
 
+    if outage is not None and outage.any():
+        for col, frame in (("nbr_idw", o_idw), ("nbr_nearest_km", o_nearest), ("nbr_n15", o_n15)):
+            alt = frame.reindex(t0s).to_numpy(dtype="float32").reshape(-1)
+            out.loc[outage, col] = alt[outage]
     stale = ~(out["obs_age_h"] <= STALE_AFTER_H).to_numpy()
     blank = stale if mask is None else (stale | mask)
+    if outage is not None:
+        blank = blank | outage
     out.loc[blank, OWN_FEATURES] = np.nan
     out["feed_delayed"] = blank
     if with_target:

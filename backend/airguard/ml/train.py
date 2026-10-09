@@ -8,8 +8,9 @@ Split by time, never randomly:  [ train ......... | 24 h gap | calibration | tes
 * test         is reported, in two modes:
     normal   the station's own feed is current; compared with persistence, the station's
              hour-of-day mean and the raw CAMS forecast
-    delayed  the station's own feed is blanked (as in a CPCB outage); compared with hour-of-day
-             mean and raw CAMS
+    delayed  a network-wide CPCB outage: the station's own feed is blanked and only independent
+             sensors (AirGradient, AirNow) count as neighbours; compared with hour-of-day mean
+             and raw CAMS
 
 Outputs models/<version>/h{h}.json + meta.json, and rows in `models` and `eval_metrics`.
 """
@@ -35,6 +36,7 @@ from airguard.ml.features import FEATURES, HORIZONS, Inputs, build_frame
 log = logging.getLogger("airguard.train")
 
 DELAY_SHARE = 0.25     # share of training rows with the station's own feed blanked
+OUTAGE_SHARE = 0.5     # of those, the share that also loses every CPCB neighbour
 SAMPLE_EVERY_H = 2     # training issue times are thinned to keep memory modest
 QUANTILES = (0.1, 0.9)
 XGB_PARAMS = dict(n_estimators=1500, learning_rate=0.04, max_depth=7, min_child_weight=10, subsample=0.8,
@@ -62,15 +64,17 @@ def _hourly_mean(tab: pd.DataFrame, frame: pd.DataFrame, horizon: int) -> np.nda
     return stacked.reindex(keys).to_numpy(dtype=float)
 
 
-def _frames(x: Inputs, t0s: pd.DatetimeIndex, h: int, delayed: bool | float, seed: int) -> pd.DataFrame:
+def _frames(x: Inputs, t0s: pd.DatetimeIndex, h: int, delayed: bool | float, seed: int,
+            outage_share: float = OUTAGE_SHARE) -> pd.DataFrame:
+    """delayed=False: natural features; True: every row delayed; a float: that share delayed."""
     n = len(t0s) * x.pm25.shape[1]
-    if delayed is True:
-        mask = np.ones(n, dtype=bool)
-    elif delayed is False:
-        mask = None
+    rng = np.random.default_rng(seed)
+    if delayed is False:
+        mask, outage = None, None
     else:
-        mask = np.random.default_rng(seed).random(n) < delayed
-    f = build_frame(x, t0s, h, mask=mask)
+        mask = np.ones(n, dtype=bool) if delayed is True else rng.random(n) < delayed
+        outage = mask & (rng.random(n) < outage_share)
+    f = build_frame(x, t0s, h, mask=mask, outage=outage)
     return f[f["y"].notna()].reset_index(drop=True)
 
 
@@ -107,9 +111,9 @@ def train(test_days: int = 14, calib_days: int = 7, history_days: int = 365) -> 
         share = 1.0 if h == 0 else DELAY_SHARE
         tr = _frames(x, t_train, h, True if h == 0 else share, seed=h)
         cal_n = None if h == 0 else _frames(x, t_cal, h, False, seed=100 + h)
-        cal_d = _frames(x, t_cal, h, True, seed=200 + h)
+        cal_d = _frames(x, t_cal, h, True, seed=200 + h, outage_share=1.0)
         te_n = None if h == 0 else _frames(x, t_test, h, False, seed=300 + h)
-        te_d = _frames(x, t_test, h, True, seed=400 + h)
+        te_d = _frames(x, t_test, h, True, seed=400 + h, outage_share=1.0)
         cal = pd.concat([f for f in (cal_n, cal_d) if f is not None], ignore_index=True)
 
         model = xgb.XGBRegressor(**XGB_PARAMS, random_state=h)
@@ -158,11 +162,13 @@ def train(test_days: int = 14, calib_days: int = 7, history_days: int = 365) -> 
     meta["metrics"] = eval_rows
     (out_dir / "meta.json").write_text(json.dumps(meta, indent=2))
     db.upsert("models", [{
-        "model_version": version, "data_source": "openaq", "horizons": HORIZONS, "features": FEATURES,
+        "model_version": version, "data_source": "openaq", "horizons": HORIZONS, "features": db.Jsonb(FEATURES),
         "train_start": idx[0].to_pydatetime(), "train_end": train_end.to_pydatetime(),
         "test_start": test_start.to_pydatetime(), "test_end": end.to_pydatetime(),
         "n_stations": int(x.pm25.shape[1]),
-        "notes": f"XGBoost per horizon, log target, {int(DELAY_SHARE * 100)}% of rows trained with a delayed feed",
+        "notes": (f"XGBoost per horizon, log target. {int(DELAY_SHARE * 100)}% of training rows have the station's "
+                  f"own feed hidden, half of those as a network-wide CPCB outage. 'Delayed' metrics hide every "
+                  f"CPCB station and keep only independent sensors."),
         "summary": {"quantiles": meta["quantiles"]},
     }], ["model_version"])
     db.upsert("eval_metrics", eval_rows, ["model_version", "horizon_h", "mode"])
