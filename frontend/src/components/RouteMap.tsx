@@ -1,8 +1,12 @@
 "use client";
-import { LngLatBounds, Map, NavigationControl } from "maplibre-gl";
+import { LngLatBounds, Map, NavigationControl, setWorkerUrl } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import type { Level, Route } from "@/lib/api";
+
+if (typeof window !== "undefined") {
+  setWorkerUrl("/maplibre-gl-worker.mjs");
+}
 
 const STYLE = process.env.NEXT_PUBLIC_MAP_STYLE_URL || "https://tiles.openfreemap.org/styles/liberty";
 
