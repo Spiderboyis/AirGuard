@@ -38,3 +38,6 @@ supabase/.temp
 .idea/
 .vscode/
 *.swp
+
+# Local editor/agent tooling
+.claude/
