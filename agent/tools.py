@@ -163,6 +163,72 @@ def _best_by_wait(options):
     return list(by_wait.values())
 
 
+def _format_trip_summary(raw: dict) -> dict:
+    if not isinstance(raw, dict):
+        return raw
+
+    routes = raw.get("routes", [])
+    cleanest = next((r for r in routes if r.get("is_cleanest")), routes[0] if routes else None)
+    fastest = next((r for r in routes if r.get("is_fastest")), routes[0] if routes else None)
+    cleanest_exp = cleanest["exposure_index"] if cleanest and cleanest.get("exposure_index") else 1.0
+
+    routes_summary = []
+    for r in routes:
+        diff_pct = round(((r["exposure_index"] - cleanest_exp) / max(cleanest_exp, 1.0)) * 100, 1)
+        routes_summary.append({
+            "route_id": r["id"],
+            "duration_min": round(r["duration_min"], 1),
+            "distance_km": round(r["distance_km"], 1),
+            "mean_pm25": round(r["mean_pm25"], 1),
+            "risk_level": r["risk"],
+            "is_cleanest": r.get("is_cleanest", False),
+            "is_fastest": r.get("is_fastest", False),
+            "relative_exposure": "0.0% (Cleanest)" if r.get("is_cleanest") else f"+{diff_pct}% exposure vs cleanest",
+        })
+
+    rec = raw.get("recommended", {})
+    wait_min = rec.get("wait_min", 0)
+    exp_change_pct = rec.get("exposure_change_pct", 0.0)
+
+    bbw = raw.get("best_by_wait", [])
+    if len(bbw) >= 2:
+        pm_now = bbw[0]["mean_pm25"]
+        pm_later = bbw[-1]["mean_pm25"]
+        hours = max(round(len(bbw) * 0.5), 1)
+        if pm_later > pm_now + 1:
+            trend = f"PM2.5 is forecast to rise from {round(pm_now, 1)} to {round(pm_later, 1)} µg/m³ over the coming {hours}h. Departing immediately avoids worsening air."
+        elif pm_later < pm_now - 1:
+            trend = f"PM2.5 is forecast to decrease from {round(pm_now, 1)} to {round(pm_later, 1)} µg/m³."
+        else:
+            trend = f"PM2.5 levels remain steady around {round(pm_now, 1)} µg/m³."
+    else:
+        trend = "PM2.5 forecasts remain stable."
+
+    if wait_min == 0:
+        dep_guidance = {
+            "verdict": "Depart now",
+            "wait_min": 0,
+            "reason": f"Immediate departure offers the lowest inhalation exposure. {trend}",
+            "exposure_saving_pct": 0.0,
+        }
+    else:
+        dep_guidance = {
+            "verdict": f"Wait {wait_min} minutes",
+            "wait_min": wait_min,
+            "reason": f"Waiting {wait_min} minutes reduces estimated exposure by {abs(round(exp_change_pct, 1))}%. {trend}",
+            "exposure_saving_pct": abs(round(exp_change_pct, 1)),
+            "extra_travel_min": round(rec.get("extra_min", wait_min), 1),
+        }
+
+    return {
+        **raw,
+        "cleanest_route": cleanest["id"] if cleanest else "r1",
+        "fastest_route": fastest["id"] if fastest else "r1",
+        "routes_breakdown": routes_summary,
+        "departure_guidance": dep_guidance,
+    }
+
+
 @tool
 def get_trip_result(trip_id: str) -> str:
     """Read the saved result for the trip the user is looking at.
@@ -176,10 +242,37 @@ def get_trip_result(trip_id: str) -> str:
         return _j({"error": str(exc)})
     if not hit:
         return _j({"error": "Trip result not found. Ask the user to run Compare routes again."})
-    return _j(hit[0]["response"])
+    return _j(_format_trip_summary(hit[0]["response"]))
 
 
-TOOLS = [now_ist, get_trip_result, geocode, get_forecast, score_routes, best_departure_time]
+@tool
+def evaluate_trip(from_place: str, to_place: str, mode: str = "walk", sensitivity: str = "normal") -> str:
+    """Evaluate routes and departure timing between two places in Delhi NCR in a single call.
+
+    Args:
+        from_place: Starting location or landmark in Delhi NCR (e.g. 'Dwarka Sector 21').
+        to_place: Destination location or landmark in Delhi NCR (e.g. 'Connaught Place').
+        mode: Mode of travel: 'walk', 'cycle', or 'car'.
+        sensitivity: User exposure sensitivity: 'normal', 'sensitive', or 'high'.
+    """
+    try:
+        o_lat, o_lon = service.geocode(from_place)
+        d_lat, d_lon = service.geocode(to_place)
+        mode_val = mode.lower() if mode and mode.lower() in MODES else "walk"
+        sens_val = sensitivity.lower() if sensitivity and sensitivity.lower() in ("normal", "sensitive", "high") else "normal"
+        analyzed = service.analyze_trip(
+            {"lat": o_lat, "lon": o_lon},
+            {"lat": d_lat, "lon": d_lon},
+            mode=mode_val,
+            demo=_demo.get(),
+            sensitivity=sens_val,
+        )
+        return get_trip_result(analyzed["trip_id"])
+    except Exception as exc:
+        return _j({"error": str(exc)})
+
+
+TOOLS = [now_ist, get_trip_result, evaluate_trip, geocode, get_forecast, score_routes, best_departure_time]
 
 if os.environ.get("ALERT_TOPIC_ARN"):
     @tool

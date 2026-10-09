@@ -9,6 +9,46 @@ const SCRIPTED = [
   "Is the fastest route safe for someone with respiratory sensitivity?",
 ];
 
+function renderFormattedText(text: string) {
+  const lines = text.split("\n");
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+    const isBullet = trimmed.startsWith("- ") || trimmed.startsWith("* ");
+    const content = isBullet ? trimmed.slice(2) : line;
+
+    const parts = content.split(/(\*\*.*?\*\*)/g);
+    const parsed = parts.map((part, pIdx) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return (
+          <strong key={pIdx} className="font-semibold text-zinc-100">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      return part;
+    });
+
+    if (isBullet) {
+      return (
+        <div key={idx} className="flex items-start gap-1.5 my-0.5 pl-1">
+          <span className="text-zinc-500 mt-1 select-none text-[8px]">•</span>
+          <span className="flex-1 text-zinc-300">{parsed}</span>
+        </div>
+      );
+    }
+
+    if (!trimmed) {
+      return <div key={idx} className="h-1.5" />;
+    }
+
+    return (
+      <p key={idx} className="my-0.5 text-zinc-200 leading-relaxed">
+        {parsed}
+      </p>
+    );
+  });
+}
+
 export default function ChatPanel({
   sens,
   mode,
@@ -124,7 +164,11 @@ export default function ChatPanel({
                   : "self-start bg-[#161822] text-zinc-200 border border-white/[0.06] rounded-bl-sm"
               }`}
             >
-              <p className="whitespace-pre-wrap">{message.text}</p>
+              {message.role === "user" ? (
+                <p className="whitespace-pre-wrap">{message.text}</p>
+              ) : (
+                <div>{renderFormattedText(message.text)}</div>
+              )}
 
               {message.cached && (
                 <p className="mt-1.5 text-[10px] text-amber-400">Offline cached answer.</p>

@@ -9,17 +9,23 @@ from agent.tools import TOOLS, reset_demo, set_demo
 SYSTEM_PROMPT = """You are AirGuard, an intelligent clean-air transit copilot for Delhi NCR that helps travelers choose the healthiest routes and optimal departure windows to minimize PM2.5 inhalation.
 
 Rules:
-1. Every factual number (PM2.5, minutes, exposure index, percentages) must come directly from a tool result in this conversation. Never guess or hallucinate numbers.
+1. Every factual number (PM2.5, minutes, distance, percentages) must come directly from a tool result in this conversation. Never guess, assume, or hallucinate numbers.
 2. Routing & Trip Resolution Priority:
    a. If '[Current trip id: ...]' is present, you MUST immediately call get_trip_result(trip_id=...) and answer directly from the evaluated routes and recommendation. DO NOT ask the user for places or locations.
-   b. If '[Current planned trip: from=..., to=...]' is present and no trip id exists, call geocode for each place, then call score_routes and best_departure_time. Do not ask for origin or destination.
-   c. If places or landmarks are mentioned in the message, call geocode and score_routes.
-   d. Only ask the user for locations if no trip id, planned trip, or place names exist in the conversation.
-3. Exposure Index: This is a relative exposure metric (PM2.5 × minutes × breathing intake factor) designed to rank transit alternatives. Explain exposure reductions clearly as percentages (e.g., 'Route B lowers your estimated PM2.5 exposure by 28% compared to Route A').
-4. Departure Timing: Scheduled clock times are not supported; explain the trade-off between leaving immediately vs waiting up to a few hours. Use now_ist if helpful to give the current IST time.
-5. Health & Sensitivity: For sensitive or critical profiles (asthma, elderly, respiratory concerns), highlight the cleanest route and recommend avoiding peak arterial road traffic and hard physical exertion during severe PM2.5 spikes. Do not diagnose or prescribe medicine.
-6. Communication style: Be direct, clear, and reassuring. Start with a clear 1-2 sentence recommendation, followed by concise bullet points with the supporting numbers (duration, exposure saving %, PM2.5 levels, and reliability).
-7. Only Delhi NCR and modes walk, cycle, and car are supported."""
+   b. If '[Current planned trip: from=..., to=...]' is present and no trip id exists, call evaluate_trip(from_place=..., to_place=...). Do not ask for origin or destination.
+   c. If places or landmarks are mentioned in the message, call evaluate_trip(from_place=..., to_place=...).
+   d. If the user asks about air quality at a specific location, call geocode then get_forecast.
+   e. Only ask the user for locations if no trip id, planned trip, or place names exist in the conversation.
+3. Response Formatting & Structure:
+   Provide concise, high-value, easy-to-read responses formatted with clean markdown:
+   - Direct Recommendation: Begin with a direct 1-2 sentence recommendation stating the cleanest route and the departure action.
+   - Route Breakdown: Summarize the cleanest option vs alternatives (route name, duration in minutes, distance in km, average PM2.5 in µg/m³, risk tier, and exposure difference).
+   - Departure Timing: Clearly state whether to depart immediately or wait. Explain the ambient PM2.5 trend (e.g. why waiting is or isn't beneficial). Never output repetitive 0% lines.
+   - Health Guidance: Add 1-2 practical tips tailored to the user's sensitivity (e.g. N95 mask advice for pedestrians/cyclists in elevated/high PM2.5, keeping car windows closed with AC recirculation, or taking lower-traffic corridors).
+4. Exposure Index: This is a relative exposure metric (PM2.5 × minutes × breathing intake factor) designed to rank transit alternatives. Explain exposure reductions clearly as percentages (e.g., 'Route 3 lowers your estimated PM2.5 exposure by 28% compared to Route 1').
+5. Departure Timing: Scheduled clock times are not supported; explain the trade-off between leaving immediately vs waiting up to a few hours. Use now_ist if helpful to give the current IST time.
+6. Only Delhi NCR and modes walk, cycle, and car are supported."""
+
 
 
 class _ToolFunc:
@@ -252,11 +258,27 @@ def chat(
             messages=history or [],
         )
         start = len(agent.messages)
-        result = agent(ctx + message)
-        return {
-            "answer": str(result).strip(),
-            "tool_calls": trace(agent.messages[start:]),
-            "cached": False,
-        }
+        try:
+            result = agent(ctx + message)
+            return {
+                "answer": str(result).strip(),
+                "tool_calls": trace(agent.messages[start:]),
+                "cached": False,
+            }
+        except Exception as exc:
+            if trip_id:
+                try:
+                    from agent.explain import explain_saved
+                    from common import db
+                    hit = db.select("route_cache", select="response", key=f"eq.trip:{trip_id}")
+                    if hit:
+                        return {
+                            "answer": explain_saved(hit[0]["response"]),
+                            "tool_calls": [{"name": "get_trip_result", "input": {"trip_id": trip_id}, "output": "Loaded saved evaluation."}],
+                            "cached": True,
+                        }
+                except Exception:
+                    pass
+            raise exc
     finally:
         reset_demo(token)
