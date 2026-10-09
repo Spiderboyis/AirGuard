@@ -1,0 +1,2167 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AirGuard API",
+    "description": "Route and departure-time advice for Delhi commuters, from a validated PM2.5 forecast.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/meta": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Meta",
+        "description": "Every modelling assumption, verbatim from engine/assumptions.py, plus data attributions.",
+        "operationId": "meta_meta_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stations": {
+      "get": {
+        "tags": [
+          "air"
+        ],
+        "summary": "Stations",
+        "description": "Every station's current value and its forecast for the next 24 hours.",
+        "operationId": "stations_stations_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StationsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/forecast": {
+      "get": {
+        "tags": [
+          "air"
+        ],
+        "summary": "Forecast",
+        "description": "PM2.5 at any point in Delhi NCR, now or up to 24 h ahead (interpolated between stations).",
+        "operationId": "forecast_forecast_get",
+        "parameters": [
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 28.95,
+              "minimum": 28.35,
+              "title": "Lat"
+            }
+          },
+          {
+            "name": "lon",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 77.55,
+              "minimum": 76.8,
+              "title": "Lon"
+            }
+          },
+          {
+            "name": "horizon_h",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "maximum": 24,
+              "minimum": 0,
+              "default": 0,
+              "title": "Horizon H"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForecastPoint"
+                }
+              }
+            }
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/eval": {
+      "get": {
+        "tags": [
+          "air"
+        ],
+        "summary": "Eval Metrics",
+        "description": "Backtest of the current forecast model against persistence, hour-of-day mean and raw CAMS.",
+        "operationId": "eval_metrics_eval_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvalResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/geocode": {
+      "get": {
+        "tags": [
+          "places"
+        ],
+        "summary": "Geocode",
+        "description": "Search Delhi NCR places (curated list first, then OpenStreetMap via Photon).",
+        "operationId": "geocode_geocode_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 120,
+              "title": "Q"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/GeocodeResult"
+                  },
+                  "title": "Response Geocode Geocode Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routes/score": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Routes Score",
+        "description": "Candidate routes leaving now, each with exposure index, risk level and confidence.",
+        "operationId": "routes_score_routes_score_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RoutesScoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutesScoreResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/departure/best": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Departure Best",
+        "description": "Every (route, departure) option on a 15-minute grid and the recommended one.",
+        "operationId": "departure_best_departure_best_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DepartureResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/analyze": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Trips Analyze",
+        "description": "Routes, departure options and the recommendation in one call. The result is saved and gets\na trip_id the assistant can read back.",
+        "operationId": "trips_analyze_trips_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/trips/{trip_id}": {
+      "get": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Trip Get",
+        "operationId": "trip_get_trips__trip_id__get",
+        "parameters": [
+          {
+            "name": "trip_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Trip Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/chat": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Agent Chat",
+        "description": "Ask the assistant. Returns the answer and every tool call it made.",
+        "operationId": "agent_chat_agent_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/stream": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Agent Stream",
+        "description": "Same as /agent/chat, streamed as Server-Sent Events: tool_start, tool_end, token, reset, done.",
+        "operationId": "agent_stream_agent_stream_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 600,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "profile": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Profile"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "trip_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trip Id"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatTurn"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ChatRequest"
+      },
+      "ChatResponse": {
+        "properties": {
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "tool_calls": {
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            },
+            "type": "array",
+            "title": "Tool Calls"
+          },
+          "grounded": {
+            "type": "boolean",
+            "title": "Grounded"
+          },
+          "ungrounded_numbers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ungrounded Numbers",
+            "default": []
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "model",
+              "fallback",
+              "cache"
+            ],
+            "title": "Source"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          }
+        },
+        "type": "object",
+        "required": [
+          "answer",
+          "tool_calls",
+          "grounded",
+          "source"
+        ],
+        "title": "ChatResponse"
+      },
+      "ChatTurn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatTurn"
+      },
+      "Decision": {
+        "properties": {
+          "recommended": {
+            "$ref": "#/components/schemas/DepartureOption"
+          },
+          "baseline": {
+            "$ref": "#/components/schemas/DepartureOption"
+          },
+          "lowest": {
+            "$ref": "#/components/schemas/DepartureOption"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "stay",
+              "route",
+              "wait",
+              "wait_and_route"
+            ],
+            "title": "Kind"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/DecisionDelta"
+          },
+          "rule": {
+            "$ref": "#/components/schemas/DecisionRule"
+          }
+        },
+        "type": "object",
+        "required": [
+          "recommended",
+          "baseline",
+          "lowest",
+          "kind",
+          "delta",
+          "rule"
+        ],
+        "title": "Decision"
+      },
+      "DecisionDelta": {
+        "properties": {
+          "exposure_index_pct": {
+            "type": "number",
+            "title": "Exposure Index Pct"
+          },
+          "arrival_min": {
+            "type": "number",
+            "title": "Arrival Min"
+          },
+          "extra_travel_min": {
+            "type": "number",
+            "title": "Extra Travel Min"
+          },
+          "wait_min": {
+            "type": "integer",
+            "title": "Wait Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exposure_index_pct",
+          "arrival_min",
+          "extra_travel_min",
+          "wait_min"
+        ],
+        "title": "DecisionDelta"
+      },
+      "DecisionRule": {
+        "properties": {
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "sensitive",
+              "high"
+            ],
+            "title": "Sensitivity"
+          },
+          "minutes_per_10pct": {
+            "type": "number",
+            "title": "Minutes Per 10Pct"
+          },
+          "cost_min": {
+            "type": "number",
+            "title": "Cost Min"
+          },
+          "accepted_cost_min": {
+            "type": "number",
+            "title": "Accepted Cost Min"
+          },
+          "wait_cost_weight": {
+            "type": "number",
+            "title": "Wait Cost Weight"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sensitivity",
+          "minutes_per_10pct",
+          "cost_min",
+          "accepted_cost_min",
+          "wait_cost_weight"
+        ],
+        "title": "DecisionRule"
+      },
+      "DepartureOption": {
+        "properties": {
+          "wait_min": {
+            "type": "integer",
+            "title": "Wait Min"
+          },
+          "depart_at": {
+            "type": "string",
+            "title": "Depart At"
+          },
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "duration_min": {
+            "type": "number",
+            "title": "Duration Min"
+          },
+          "exposure_index": {
+            "type": "number",
+            "title": "Exposure Index"
+          },
+          "exposure_low": {
+            "type": "number",
+            "title": "Exposure Low"
+          },
+          "exposure_high": {
+            "type": "number",
+            "title": "Exposure High"
+          },
+          "mean_pm25": {
+            "type": "number",
+            "title": "Mean Pm25"
+          },
+          "risk": {
+            "type": "string",
+            "title": "Risk"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wait_min",
+          "depart_at",
+          "route_id",
+          "label",
+          "duration_min",
+          "exposure_index",
+          "exposure_low",
+          "exposure_high",
+          "mean_pm25",
+          "risk",
+          "confidence"
+        ],
+        "title": "DepartureOption"
+      },
+      "DepartureResponse": {
+        "properties": {
+          "departures": {
+            "items": {
+              "$ref": "#/components/schemas/DepartureOption"
+            },
+            "type": "array",
+            "title": "Departures"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "departures",
+          "decision",
+          "data"
+        ],
+        "title": "DepartureResponse"
+      },
+      "ErrorBody": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorBody"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorBody"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "EvalResponse": {
+        "properties": {
+          "model_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model Version"
+          },
+          "data_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Source"
+          },
+          "trained_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trained At"
+          },
+          "train_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train Start"
+          },
+          "train_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Train End"
+          },
+          "test_start": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Start"
+          },
+          "test_end": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test End"
+          },
+          "n_stations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "N Stations"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "metrics": {
+            "items": {
+              "$ref": "#/components/schemas/EvalRow"
+            },
+            "type": "array",
+            "title": "Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "model_version",
+          "data_source",
+          "trained_at",
+          "train_start",
+          "train_end",
+          "test_start",
+          "test_end",
+          "n_stations",
+          "notes",
+          "metrics"
+        ],
+        "title": "EvalResponse"
+      },
+      "EvalRow": {
+        "properties": {
+          "horizon_h": {
+            "type": "integer",
+            "title": "Horizon H"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "delayed"
+            ],
+            "title": "Mode"
+          },
+          "mae": {
+            "type": "number",
+            "title": "Mae"
+          },
+          "rmse": {
+            "type": "number",
+            "title": "Rmse"
+          },
+          "baseline_persistence_mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Persistence Mae"
+          },
+          "baseline_persistence_rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Persistence Rmse"
+          },
+          "baseline_hourly_mean_mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Hourly Mean Mae"
+          },
+          "baseline_hourly_mean_rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Hourly Mean Rmse"
+          },
+          "baseline_cams_mae": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Cams Mae"
+          },
+          "baseline_cams_rmse": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline Cams Rmse"
+          },
+          "interval_coverage": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Coverage"
+          },
+          "interval_width": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Interval Width"
+          },
+          "n_samples": {
+            "type": "integer",
+            "title": "N Samples"
+          }
+        },
+        "type": "object",
+        "required": [
+          "horizon_h",
+          "mode",
+          "mae",
+          "rmse",
+          "n_samples"
+        ],
+        "title": "EvalRow"
+      },
+      "ForecastPoint": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "target_ts": {
+            "type": "string",
+            "title": "Target Ts"
+          },
+          "horizon_h": {
+            "type": "number",
+            "title": "Horizon H"
+          },
+          "pm25": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pm25"
+          },
+          "low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low"
+          },
+          "high": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "High"
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence"
+          },
+          "nearest_station_km": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nearest Station Km"
+          },
+          "risk": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "target_ts",
+          "horizon_h",
+          "pm25",
+          "low",
+          "high",
+          "confidence",
+          "nearest_station_km",
+          "risk"
+        ],
+        "title": "ForecastPoint"
+      },
+      "GeocodeResult": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "curated",
+              "osm"
+            ],
+            "title": "Source"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "detail",
+          "lat",
+          "lon",
+          "source"
+        ],
+        "title": "GeocodeResult"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "Point": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": -90.0,
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180.0,
+            "minimum": -180.0,
+            "title": "Lon"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 120
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "title": "Point"
+      },
+      "Profile": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "sensitive",
+              "high"
+            ],
+            "title": "Sensitivity",
+            "default": "normal"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "cycle",
+              "two_wheeler",
+              "car"
+            ],
+            "title": "Mode",
+            "default": "cycle"
+          },
+          "max_extra_min": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": 0.0,
+            "title": "Max Extra Min",
+            "default": 15
+          },
+          "max_wait_min": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Max Wait Min",
+            "default": 120
+          }
+        },
+        "type": "object",
+        "title": "Profile"
+      },
+      "RouteScore": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "depart_at": {
+            "type": "string",
+            "title": "Depart At"
+          },
+          "duration_min": {
+            "type": "number",
+            "title": "Duration Min"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "exposure_index": {
+            "type": "number",
+            "title": "Exposure Index"
+          },
+          "exposure_low": {
+            "type": "number",
+            "title": "Exposure Low"
+          },
+          "exposure_high": {
+            "type": "number",
+            "title": "Exposure High"
+          },
+          "mean_pm25": {
+            "type": "number",
+            "title": "Mean Pm25"
+          },
+          "peak_pm25": {
+            "type": "number",
+            "title": "Peak Pm25"
+          },
+          "risk": {
+            "type": "string",
+            "title": "Risk"
+          },
+          "risk_label": {
+            "type": "string",
+            "title": "Risk Label"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "max_station_km": {
+            "type": "number",
+            "title": "Max Station Km"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/Segment"
+            },
+            "type": "array",
+            "title": "Segments",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id",
+          "label",
+          "depart_at",
+          "duration_min",
+          "distance_km",
+          "exposure_index",
+          "exposure_low",
+          "exposure_high",
+          "mean_pm25",
+          "peak_pm25",
+          "risk",
+          "risk_label",
+          "confidence",
+          "max_station_km"
+        ],
+        "title": "RouteScore"
+      },
+      "RoutesScoreRequest": {
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "cycle",
+              "two_wheeler",
+              "car"
+            ],
+            "title": "Mode",
+            "default": "cycle"
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "sensitive",
+              "high"
+            ],
+            "title": "Sensitivity",
+            "default": "normal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "destination"
+        ],
+        "title": "RoutesScoreRequest"
+      },
+      "RoutesScoreResponse": {
+        "properties": {
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteScore"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "routes",
+          "data"
+        ],
+        "title": "RoutesScoreResponse"
+      },
+      "Segment": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "pm25": {
+            "type": "number",
+            "title": "Pm25"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          },
+          "minutes": {
+            "type": "number",
+            "title": "Minutes"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "station_km": {
+            "type": "number",
+            "title": "Station Km"
+          },
+          "line": {
+            "items": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Line"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lon",
+          "pm25",
+          "low",
+          "high",
+          "minutes",
+          "confidence",
+          "station_km",
+          "line"
+        ],
+        "title": "Segment"
+      },
+      "SeriesPoint": {
+        "properties": {
+          "ts": {
+            "type": "string",
+            "title": "Ts"
+          },
+          "pm25": {
+            "type": "number",
+            "title": "Pm25"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ts",
+          "pm25",
+          "low",
+          "high"
+        ],
+        "title": "SeriesPoint"
+      },
+      "StationSummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "is_monitor": {
+            "type": "boolean",
+            "title": "Is Monitor"
+          },
+          "pm25_now": {
+            "type": "number",
+            "title": "Pm25 Now"
+          },
+          "pm25_interp_now": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pm25 Interp Now"
+          },
+          "measured": {
+            "type": "boolean",
+            "title": "Measured"
+          },
+          "obs_age_h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Obs Age H"
+          },
+          "series": {
+            "items": {
+              "$ref": "#/components/schemas/SeriesPoint"
+            },
+            "type": "array",
+            "title": "Series"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "lat",
+          "lon",
+          "provider",
+          "is_monitor",
+          "pm25_now",
+          "pm25_interp_now",
+          "measured",
+          "obs_age_h",
+          "series"
+        ],
+        "title": "StationSummary"
+      },
+      "StationsResponse": {
+        "properties": {
+          "issued_at": {
+            "type": "string",
+            "title": "Issued At"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "now": {
+            "type": "string",
+            "title": "Now"
+          },
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/StationSummary"
+            },
+            "type": "array",
+            "title": "Stations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "issued_at",
+          "model_version",
+          "now",
+          "stations"
+        ],
+        "title": "StationsResponse"
+      },
+      "ToolCall": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "input": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input"
+          },
+          "output": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "items": {},
+                "type": "array"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output"
+          },
+          "ms": {
+            "type": "integer",
+            "title": "Ms"
+          },
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "input",
+          "output",
+          "ms",
+          "ok"
+        ],
+        "title": "ToolCall"
+      },
+      "TripData": {
+        "properties": {
+          "forecast_issued_at": {
+            "type": "string",
+            "title": "Forecast Issued At"
+          },
+          "model_version": {
+            "type": "string",
+            "title": "Model Version"
+          },
+          "data_age_min": {
+            "type": "integer",
+            "title": "Data Age Min"
+          },
+          "stations": {
+            "type": "integer",
+            "title": "Stations"
+          },
+          "stations_delayed": {
+            "type": "integer",
+            "title": "Stations Delayed"
+          },
+          "snapshot": {
+            "type": "boolean",
+            "title": "Snapshot"
+          }
+        },
+        "type": "object",
+        "required": [
+          "forecast_issued_at",
+          "model_version",
+          "data_age_min",
+          "stations",
+          "stations_delayed",
+          "snapshot"
+        ],
+        "title": "TripData"
+      },
+      "TripLimits": {
+        "properties": {
+          "window_h": {
+            "type": "number",
+            "title": "Window H"
+          },
+          "max_extra_min": {
+            "type": "number",
+            "title": "Max Extra Min"
+          },
+          "max_wait_min": {
+            "type": "number",
+            "title": "Max Wait Min"
+          }
+        },
+        "type": "object",
+        "required": [
+          "window_h",
+          "max_extra_min",
+          "max_wait_min"
+        ],
+        "title": "TripLimits"
+      },
+      "TripPlace": {
+        "properties": {
+          "lat": {
+            "type": "number",
+            "title": "Lat"
+          },
+          "lon": {
+            "type": "number",
+            "title": "Lon"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "title": "TripPlace"
+      },
+      "TripRequest": {
+        "properties": {
+          "origin": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/Point"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "cycle",
+              "two_wheeler",
+              "car"
+            ],
+            "title": "Mode",
+            "default": "cycle"
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "sensitive",
+              "high"
+            ],
+            "title": "Sensitivity",
+            "default": "normal"
+          },
+          "window_h": {
+            "type": "number",
+            "maximum": 6.0,
+            "minimum": 0.0,
+            "title": "Window H",
+            "description": "How far ahead to consider leaving (hours)",
+            "default": 4
+          },
+          "max_extra_min": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": 0.0,
+            "title": "Max Extra Min",
+            "description": "Most extra travel minutes accepted",
+            "default": 15
+          },
+          "max_wait_min": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Max Wait Min",
+            "description": "Longest wait before leaving (minutes)",
+            "default": 120
+          }
+        },
+        "type": "object",
+        "required": [
+          "origin",
+          "destination"
+        ],
+        "title": "TripRequest"
+      },
+      "TripResult": {
+        "properties": {
+          "trip_id": {
+            "type": "string",
+            "title": "Trip Id"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "now": {
+            "type": "string",
+            "title": "Now"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/TripPlace"
+          },
+          "destination": {
+            "$ref": "#/components/schemas/TripPlace"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "walk",
+              "cycle",
+              "two_wheeler",
+              "car"
+            ],
+            "title": "Mode"
+          },
+          "mode_label": {
+            "type": "string",
+            "title": "Mode Label"
+          },
+          "mode_factor": {
+            "type": "number",
+            "title": "Mode Factor"
+          },
+          "sensitivity": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "sensitive",
+              "high"
+            ],
+            "title": "Sensitivity"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/TripLimits"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/RouteScore"
+            },
+            "type": "array",
+            "title": "Routes"
+          },
+          "departures": {
+            "items": {
+              "$ref": "#/components/schemas/DepartureOption"
+            },
+            "type": "array",
+            "title": "Departures"
+          },
+          "decision": {
+            "$ref": "#/components/schemas/Decision"
+          },
+          "recommended_route": {
+            "$ref": "#/components/schemas/RouteScore"
+          },
+          "data": {
+            "$ref": "#/components/schemas/TripData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip_id",
+          "created_at",
+          "now",
+          "origin",
+          "destination",
+          "mode",
+          "mode_label",
+          "mode_factor",
+          "sensitivity",
+          "limits",
+          "routes",
+          "departures",
+          "decision",
+          "recommended_route",
+          "data"
+        ],
+        "title": "TripResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    }
+  }
+}
