@@ -39,14 +39,21 @@ def at_hour(series, h):
     if not series:
         raise ValueError("Station has no forecast series.")
     if h <= series[0][0]:
-        return tuple(series[0][1:])
-    for (h0, *v0), (h1, *v1) in zip(series, series[1:]):
+        first = series[0]
+        return (first[1], first[2], first[3])
+    for s0, s1 in zip(series, series[1:]):
+        h0, h1 = s0[0], s1[0]
         if h1 <= h0:
             continue
         if h <= h1:
             w = (h - h0) / (h1 - h0)
-            return tuple(a + w * (b - a) for a, b in zip(v0, v1))
-    return tuple(series[-1][1:])
+            return (
+                s0[1] + w * (s1[1] - s0[1]),
+                s0[2] + w * (s1[2] - s0[2]),
+                s0[3] + w * (s1[3] - s0[3]),
+            )
+    last = series[-1]
+    return (last[1], last[2], last[3])
 
 
 def idw(lat, lon, stations, h, k=4, power=2.0):
@@ -214,22 +221,77 @@ def choose(options, sensitivity="normal", max_extra_min=15, max_wait_min=120):
     }
 
 
+def _precompute_route_geometry(r, stations, k=4, power=2.0, step_m=200):
+    segs, _ = resample(r["coords"], step_m)
+    seg_count = len(segs)
+    seg_s = r["duration_s"] / seg_count
+    minutes = seg_s / 60.0
+    precomputed = []
+    for lat, lon, _ in segs:
+        ranked = sorted(((haversine_km(lat, lon, s.lat, s.lon), s) for s in stations), key=lambda x: x[0])[:k]
+        nearest_km = ranked[0][0]
+        if nearest_km < 0.05:
+            wts = (1.0,)
+            cached_stations = (ranked[0][1],)
+        else:
+            raw_wts = [1.0 / (d ** power) for d, _ in ranked]
+            tot = sum(raw_wts)
+            wts = tuple(w / tot for w in raw_wts)
+            cached_stations = tuple(s for _, s in ranked)
+        precomputed.append((wts, cached_stations, nearest_km))
+    return {
+        "precomputed": precomputed,
+        "seg_s": seg_s,
+        "minutes": minutes,
+        "duration_min": round(r["duration_s"] / 60, 1),
+        "duration_s": r["duration_s"],
+    }
+
+
 def best_departure(routes, mode, stations, earliest_in_h=0.0, window_h=4.0, max_wait_min=120, step_min=15,
                    sensitivity="normal", max_extra_min=15):
     """routes: [{'id', 'coords', 'duration_s'}]. Evaluates every route at each 15-minute step."""
     if not routes:
         raise ValueError("No route found between those places.")
+    if not stations:
+        raise ValueError("No usable air-quality stations right now.")
     window_h = min(float(window_h), 6.0)
+    factor = MODES[mode]["factor"]
+    cached_routes = [(r["id"], _precompute_route_geometry(r, stations)) for r in routes]
     options, t = [], float(earliest_in_h)
     end = earliest_in_h + window_h
     while t <= end + 1e-9:
-        for r in routes:
-            s = score_route(r["coords"], r["duration_s"], mode, t, stations)
+        for route_id, meta in cached_routes:
+            precomputed = meta["precomputed"]
+            seg_s = meta["seg_s"]
+            minutes = meta["minutes"]
+            duration_s = meta["duration_s"]
+            duration_min = meta["duration_min"]
+            exposure_index = pm_minutes = conf_sum = 0.0
+            for i, (wts, cached_stations, nearest_km) in enumerate(precomputed):
+                t_h = t + (i + 0.5) * seg_s / 3600.0
+                if len(wts) == 1:
+                    pm, lo, hi = at_hour(cached_stations[0].series, t_h)
+                else:
+                    pm = lo = hi = 0.0
+                    for w, s in zip(wts, cached_stations):
+                        v_pm, v_lo, v_hi = at_hour(s.series, t_h)
+                        pm += w * v_pm
+                        lo += w * v_lo
+                        hi += w * v_hi
+                exposure_index += pm * minutes * factor
+                pm_minutes += pm * minutes
+                conf_sum += confidence(pm, lo, hi, nearest_km)
+            mean_pm = pm_minutes / (duration_s / 60.0)
             options.append({
                 "depart_in_h": round(t, 3),
                 "wait_min": int(round((t - earliest_in_h) * 60)),
-                "route_id": r["id"],
-                **{k: s[k] for k in ("duration_min", "exposure_index", "mean_pm25", "risk", "confidence")},
+                "route_id": route_id,
+                "duration_min": duration_min,
+                "exposure_index": round(exposure_index, 1),
+                "mean_pm25": round(mean_pm, 1),
+                "risk": risk_label(mean_pm),
+                "confidence": round(conf_sum / len(precomputed), 2),
             })
         t += step_min / 60
     return choose(options, sensitivity, max_extra_min, max_wait_min)

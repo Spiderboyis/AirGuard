@@ -31,6 +31,10 @@ _rate_lock = threading.Lock()
 def allow_chat(ip: str, limit: int = 10, window: float = 60) -> bool:
     now = time.time()
     with _rate_lock:
+        if len(_rate_hits) > 200:
+            expired_ips = [k for k, stamps in _rate_hits.items() if not stamps or now - stamps[-1] >= window]
+            for k in expired_ips:
+                del _rate_hits[k]
         recent = [stamp for stamp in _rate_hits.get(ip, []) if now - stamp < window]
         if len(recent) >= limit:
             _rate_hits[ip] = recent

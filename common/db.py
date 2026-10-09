@@ -100,11 +100,27 @@ create table if not exists route_cache (
   created_at text default (strftime('%Y-%m-%dT%H:%M:%SZ','now'))
 );
 create index if not exists measurements_ts on measurements (ts);
+create index if not exists forecasts_latest_gen on forecasts_latest (generated_at);
+create index if not exists route_cache_created on route_cache (created_at);
 """
 
 _lock = threading.Lock()
 _conn = None
 _conn_path = None
+_sb_client = None
+_sb_client_lock = threading.Lock()
+
+
+def _get_sb_client():
+    global _sb_client
+    if _sb_client is None:
+        with _sb_client_lock:
+            if _sb_client is None:
+                _sb_client = httpx.Client(
+                    timeout=httpx.Timeout(25.0, connect=5.0),
+                    limits=httpx.Limits(max_keepalive_connections=20, max_connections=40),
+                )
+    return _sb_client
 
 
 def pg_filter(expr: str) -> str:
@@ -136,13 +152,17 @@ def _use_supabase() -> bool:
 
 
 def reset_connection():
-    """Close the cached SQLite connection. Tests use this between databases."""
-    global _conn, _conn_path
+    """Close the cached SQLite connection and HTTP client. Tests use this between databases."""
+    global _conn, _conn_path, _sb_client
     with _lock:
         if _conn is not None:
             _conn.close()
         _conn = None
         _conn_path = None
+    with _sb_client_lock:
+        if _sb_client is not None:
+            _sb_client.close()
+            _sb_client = None
 
 
 def _connect():
@@ -156,6 +176,14 @@ def _connect():
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         conn = sqlite3.connect(path, check_same_thread=False)
         conn.row_factory = sqlite3.Row
+        # High performance and concurrency pragmas
+        try:
+            conn.execute("PRAGMA journal_mode = WAL")
+            conn.execute("PRAGMA synchronous = NORMAL")
+            conn.execute("PRAGMA busy_timeout = 5000")
+            conn.execute("PRAGMA cache_size = -64000")
+        except sqlite3.OperationalError:
+            pass
         conn.executescript(_SCHEMA)
         conn.commit()
         _conn = conn
@@ -245,7 +273,7 @@ def _sb_select(table, params):
             query[key] = value
         else:
             query[key] = pg_filter(str(value))
-    response = httpx.get(_url(table), headers=_h(), params=query, timeout=20)
+    response = _get_sb_client().get(_url(table), headers=_h(), params=query, timeout=20)
     response.raise_for_status()
     return response.json()
 
@@ -323,7 +351,7 @@ def _plain(value):
 
 def _sb_upsert(table, rows, on_conflict, chunk):
     for i in range(0, len(rows), chunk):
-        response = httpx.post(
+        response = _get_sb_client().post(
             _url(table),
             headers=_h({"Prefer": "resolution=merge-duplicates,return=minimal"}),
             params={"on_conflict": on_conflict},
