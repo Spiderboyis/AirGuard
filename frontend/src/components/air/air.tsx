@@ -88,10 +88,8 @@ export function AqLegend({ className, compact = false }: { className?: string; c
       <div className="flex justify-between text-[10px] text-muted-foreground tabular font-mono">
         {compact ? (
           <>
-            <span>0</span>
-            <span>60</span>
-            <span>120</span>
-            <span>250+ µg/m³</span>
+            <span>Good</span>
+            <span>Severe</span>
           </>
         ) : (
           BANDS.map((b) => (

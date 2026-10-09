@@ -1,69 +1,111 @@
-import Image from "next/image";
+import Link from "next/link";
+
+import { SiteFooter } from "@/components/site/site-footer";
+import { SiteHeader } from "@/components/site/site-header";
+
+import { EvidenceTeaser, HeroActions, HeroMap, LiveFacts } from "./home-client";
+
+const STEPS = [
+  {
+    n: "01",
+    title: "Forecast",
+    body: "Every hour a model trained on a year of CPCB, DPCC and IMD readings, weather, the CAMS model and crop-fire detections forecasts PM2.5 at each station for the next 24 hours.",
+  },
+  {
+    n: "02",
+    title: "Score every 200 m",
+    body: "Each route is cut into 200-metre pieces. Each piece gets the forecast for the minute you would reach it, blended from the nearest stations, with a confidence that drops as stations get farther away.",
+  },
+  {
+    n: "03",
+    title: "Decide",
+    body: "Departures are checked every 15 minutes across the next hours. You get the cleanest option that fits your limits. Your sensitivity changes the trade-off, never the pollution numbers.",
+  },
+  {
+    n: "04",
+    title: "Explain",
+    body: "An assistant built on the Strands Agents SDK answers follow-up questions using only numbers that AirGuard's tools return, and shows each tool call it made.",
+  },
+];
+
+const PRINCIPLES = [
+  ["A number is never shown alone", "Every exposure figure comes with a forecast range and a confidence score."],
+  ["Delays are labelled", "When a station's feed is late, its value is marked as a model estimate, not a reading."],
+  ["Checked against simple baselines", "The forecast is backtested on held-out weeks against persistence, the hour-of-day average and raw CAMS."],
+  ["Guidance, not diagnosis", "AirGuard compares options within one way of travelling. It doesn't give medical advice."],
+];
 
 export default function Home() {
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="flex min-h-dvh flex-col">
+      <SiteHeader className="sticky top-0" />
+
+      <main>
+        {/* Hero */}
+        <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-12 pb-16 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-20">
+          <div>
+            <p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
+              Delhi NCR · PM2.5 · Commute planner
+            </p>
+            <h1 className="mt-4 font-serif text-[3.2rem] leading-[0.98] tracking-[-0.02em] sm:text-7xl">
+              Same commute.
+              <br />
+              <span className="italic">Less smoke.</span>
+            </h1>
+            <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-foreground">
+              AirGuard reads the PM2.5 forecast along every route you could take in the next few hours, then tells
+              you which way to go and when to leave. Built for people who cycle, walk, or do the school run in Delhi.
+            </p>
+            <HeroActions />
+            <LiveFacts />
+          </div>
+          <HeroMap />
+        </section>
+
+        {/* How it works */}
+        <section className="rule-top">
+          <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <h2 className="font-serif text-3xl tracking-[-0.01em] sm:text-4xl">How it works</h2>
+              <Link href="/method" className="text-sm underline underline-offset-4">Read the method</Link>
+            </div>
+            <ol className="mt-10 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
+              {STEPS.map((s) => (
+                <li key={s.n} className="border-t border-foreground pt-4">
+                  <span className="font-mono text-xs text-muted-foreground">{s.n}</span>
+                  <h3 className="mt-2 text-lg font-medium">{s.title}</h3>
+                  <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{s.body}</p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* Principles */}
+        <section className="rule-top bg-paper">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_2fr]">
+            <div>
+              <h2 className="font-serif text-3xl tracking-[-0.01em] sm:text-4xl">Honest about what it knows</h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
+                Delhi has a few dozen reference monitors for a city of more than twenty million people. Most of a
+                route is far from any of them, so AirGuard says how sure it is every time.
+              </p>
+            </div>
+            <dl className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
+              {PRINCIPLES.map(([t, b]) => (
+                <div key={t}>
+                  <dt className="font-medium">{t}</dt>
+                  <dd className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">{b}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
+        <EvidenceTeaser />
       </main>
+
+      <SiteFooter />
     </div>
   );
 }

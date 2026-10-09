@@ -137,6 +137,7 @@ export function AirMap({ stations, routes, origin, destination, onRouteClick, in
       instance.on("mouseenter", "routes-hit", () => (instance!.getCanvas().style.cursor = "pointer"));
       instance.on("mouseleave", "routes-hit", () => (instance!.getCanvas().style.cursor = ""));
       map.current = instance;
+      if (process.env.NODE_ENV === "development") (window as unknown as { __airmap?: MlMap }).__airmap = instance;
     })();
     return () => {
       cancelled = true;
