@@ -31,16 +31,16 @@ export default function Home() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [mode, setMode] = useState<Mode>("cycle");
-  const [sens, setSens] = useState(() => {
-    if (typeof window !== "undefined") {
-      try {
-        return localStorage.getItem("sens") ?? "normal";
-      } catch {
-        /* private mode */
-      }
+  const [sens, setSens] = useState("normal");
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sens");
+      if (saved) setSens(saved);
+    } catch {
+      /* private mode */
     }
-    return "normal";
-  });
+  }, []);
   const [demo, setDemo] = useState(false);
   const [routes, setRoutes] = useState<Route[]>([]);
   const [age, setAge] = useState<number | null>(null);
