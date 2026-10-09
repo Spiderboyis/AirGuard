@@ -1,0 +1,12 @@
+{
+  "label": "synthetic local seed, not a Delhi measurement",
+  "trip": "Hauz Khas to DU North Campus",
+  "routes": 3,
+  "departure": {
+    "exposure_index_pct": -21.5,
+    "arrival_min": 15.0
+  },
+  "recommended_wait_min": 15,
+  "recommended_route": "r1",
+  "reliability": 0.92
+}

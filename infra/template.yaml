@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: AirGuard
+
+Parameters:
+  AllowedOrigins:
+    Type: String
+    Default: "*"
+  ModelBucket:
+    Type: String
+  ModelVersion:
+    Type: String
+    Default: v1
+
+Globals:
+  Function:
+    PackageType: Image
+    Architectures: [x86_64]
+    MemorySize: 1024
+    Timeout: 29
+    Environment:
+      Variables:
+        ALLOWED_ORIGINS: !Ref AllowedOrigins
+        MODEL_VERSION: !Ref ModelVersion
+        LLM_BACKEND: bedrock
+        BEDROCK_MODEL_ID: amazon.nova-2-lite-v1:0
+
+Resources:
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+      RouteSettings:
+        "POST /agent/chat":
+          ThrottlingBurstLimit: 3
+          ThrottlingRateLimit: 1
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      ImageConfig:
+        Command: ["api.main.handler"]
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: airguard/*
+      Events:
+        Any:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+    Metadata:
+      Dockerfile: infra/Dockerfile
+      DockerContext: ../
+      DockerTag: v1
+
+  AgentFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      ImageConfig:
+        Command: ["agent.handler.lambda_handler"]
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: airguard/*
+        - Statement:
+            - Effect: Allow
+              Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+              Resource: "*"
+      Events:
+        Chat:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /agent/chat
+            Method: POST
+    Metadata:
+      Dockerfile: infra/Dockerfile
+      DockerContext: ../
+      DockerTag: v1
+
+  IngestFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Timeout: 300
+      ImageConfig:
+        Command: ["ingestion.handler.lambda_handler"]
+      Policies:
+        - SSMParameterReadPolicy:
+            ParameterName: airguard/*
+        - S3ReadPolicy:
+            BucketName: !Ref ModelBucket
+      Events:
+        Hourly:
+          Type: Schedule
+          Properties:
+            Schedule: rate(1 hour)
+    Metadata:
+      Dockerfile: infra/Dockerfile
+      DockerContext: ../
+      DockerTag: v1
+
+Outputs:
+  ApiUrl:
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/"

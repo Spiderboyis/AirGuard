@@ -1,0 +1,8 @@
+fastapi
+mangum
+httpx
+pydantic
+numpy
+xgboost-cpu
+strands-agents
+boto3

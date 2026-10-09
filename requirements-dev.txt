@@ -1,0 +1,8 @@
+-r requirements.txt
+pytest
+pandas
+scikit-learn
+uvicorn[standard]
+python-dotenv
+ipykernel
+strands-agents[ollama]

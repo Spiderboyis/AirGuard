@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+frontend/.env.local
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+node_modules/
+.aws-sam/
+frontend/.next/
+frontend/out/
+models/
+data/
+.DS_Store
+*.egg-info/
