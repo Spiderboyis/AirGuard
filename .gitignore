@@ -41,3 +41,6 @@ supabase/.temp
 
 # Local editor/agent tooling
 .claude/
+
+# Frozen forecasts (regenerate with make snapshot; commit only the one used for the demo)
+backend/snapshots/
