@@ -131,6 +131,11 @@ def _clean_query(q: str) -> str:
 
 
 def geocode(q):
+    coord_match = re.match(r'^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$', q.strip())
+    if coord_match:
+        lat = float(coord_match.group(1))
+        lon = float(coord_match.group(2))
+        return (lat, lon)
     key = q.strip().lower()
     search_q = _clean_query(q)
     hit = db.select("route_cache", select="response", key=f"eq.geo:{key}")

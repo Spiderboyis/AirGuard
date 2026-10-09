@@ -320,7 +320,7 @@ export default function RouteMap({
       {selectedRoute && (
         <div className="absolute top-3 left-3 z-20 pointer-events-auto max-w-[calc(100%-280px)] rounded-lg border border-white/[0.08] bg-[#111318]/90 px-3 py-1.5 backdrop-blur-md text-xs font-mono truncate shadow-lg">
           <span className="text-zinc-400">Selected: </span>
-          <span className="text-white font-medium">Route {selectedRoute.id.slice(1)}</span>
+          <span className="text-white font-medium">Route {selectedRoute.id.replace(/^r/i, "")}</span>
           <span className="text-zinc-500 mx-1.5">·</span>
           <span className="text-emerald-400 font-medium">{selectedRoute.duration_min} min</span>
           <span className="text-zinc-500 mx-1.5">·</span>

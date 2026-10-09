@@ -56,7 +56,7 @@ export default function RouteCards({
                     {String.fromCharCode(65 + idx)}
                   </span>
                   <span className="text-sm font-medium text-zinc-200">
-                    Route {route.id.slice(1)}
+                    Route {route.id.replace(/^r/i, "")}
                   </span>
                 </div>
 

@@ -27,6 +27,15 @@ const POPULAR_PRESETS = [
   { label: "Rohini → CP", from: "Rohini Sector 13, Delhi", to: "Connaught Place, New Delhi" },
 ];
 
+const DEFAULT_LEVELS: Level[] = [
+  { name: "low", max: 30, color: "#2e7d32" },
+  { name: "moderate", max: 60, color: "#9e9d24" },
+  { name: "elevated", max: 90, color: "#f9a825" },
+  { name: "high", max: 120, color: "#e65100" },
+  { name: "very_high", max: 250, color: "#b71c1c" },
+  { name: "extreme", max: null, color: "#4a148c" },
+];
+
 export default function Home() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -53,18 +62,20 @@ export default function Home() {
   const [maxExtra, setMaxExtra] = useState(15);
   const [maxWait, setMaxWait] = useState(120);
   const [snap, setSnap] = useState<string | null>(null);
-  const [levels, setLevels] = useState<Level[]>([]);
+  const [levels, setLevels] = useState<Level[]>(DEFAULT_LEVELS);
   const [offline, setOffline] = useState(false);
   const [offlineChat, setOfflineChat] = useState<SavedChat[]>([]);
   const [showConfig, setShowConfig] = useState(false);
 
   useEffect(() => {
     getConfig()
-      .then((config) => setLevels(config.levels))
-      .catch((error) => {
-        if (!new URLSearchParams(window.location.search).get("offline")) {
-          setErr("Could not load level settings: " + (error as Error).message);
+      .then((config) => {
+        if (config.levels && config.levels.length > 0) {
+          setLevels(config.levels);
         }
+      })
+      .catch((error) => {
+        console.warn("Could not load level settings from backend:", (error as Error).message);
       });
   }, []);
 
@@ -129,8 +140,7 @@ export default function Home() {
     setBusy(true);
     setErr("");
     try {
-      const origin = await geocode(from);
-      const destination = await geocode(to);
+      const [origin, destination] = await Promise.all([geocode(from), geocode(to)]);
       const analyzed = await analyzeTrip({
         origin,
         destination,
@@ -149,6 +159,7 @@ export default function Home() {
       setSel(
         analyzed.departure.recommended?.route_id ??
           analyzed.routes.routes.find((route) => route.is_cleanest)?.id ??
+          analyzed.routes.routes[0]?.id ??
           null
       );
     } catch (error) {
@@ -200,6 +211,7 @@ export default function Home() {
               placeholder="Enter start location or metro station"
               ariaLabel="Starting point"
               iconType="origin"
+              onSubmit={go}
             />
           </div>
 
@@ -227,6 +239,7 @@ export default function Home() {
               placeholder="Enter destination"
               ariaLabel="Destination"
               iconType="destination"
+              onSubmit={go}
             />
           </div>
         </div>
@@ -404,6 +417,32 @@ export default function Home() {
             </div>
           )}
         </div>
+
+        {/* Clean Air Advantage Callout */}
+        {routes.length > 1 && (() => {
+          const cleanest = routes.find((r) => r.is_cleanest);
+          const fastest = routes.find((r) => r.is_fastest);
+          if (!cleanest || !fastest || cleanest.id === fastest.id || fastest.exposure_index <= 0) return null;
+          const pct = Math.round(((fastest.exposure_index - cleanest.exposure_index) / fastest.exposure_index) * 100);
+          if (pct <= 0) return null;
+          const detourMin = Math.max(0, cleanest.duration_min - fastest.duration_min);
+          return (
+            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.06] p-3 text-xs">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-medium text-emerald-300 flex items-center gap-1.5">
+                  <span>🫁</span>
+                  <span>Clean Air Advantage</span>
+                </span>
+                <span className="font-mono text-[11px] font-semibold text-emerald-400 bg-emerald-500/20 px-1.5 py-0.5 rounded">
+                  -{pct}% PM2.5 Intake
+                </span>
+              </div>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                Choosing Route {cleanest.id.replace(/^r/i, "")} reduces pollutant inhalation vs the fastest path ({detourMin > 0 ? `+${detourMin} min detour` : "same duration"}).
+              </p>
+            </div>
+          );
+        })()}
 
         {/* Route Cards */}
         {routes.length > 0 && (
