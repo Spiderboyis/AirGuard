@@ -18,7 +18,7 @@ The Makefile points the Supabase CLI at Podman's socket automatically when Docke
 
 ```bash
 git clone <your fork> airguard && cd airguard
-make setup          # venv + backend (editable) + frontend deps + pulls qwen3:1.7b
+make setup          # venv + pinned backend deps (backend/requirements.lock) + frontend deps + qwen3:1.7b
 ```
 
 ## 2. Keys

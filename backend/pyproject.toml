@@ -2,7 +2,7 @@
 name = "airguard"
 version = "0.1.0"
 description = "Plan Delhi commutes that breathe less PM2.5: route and departure-time advice from a validated forecast, explained by a tool-using agent."
-readme = "../README.md"
+readme = "README.md"
 license = { text = "Apache-2.0" }
 requires-python = ">=3.11"
 dependencies = [

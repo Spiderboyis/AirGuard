@@ -28,7 +28,8 @@ help: ## Show this help
 setup: ## Install Python and Node dependencies and pull the local LLM
 	test -d $(VENV) || $(PY) -m venv $(VENV)
 	$(VPY) -m pip install -q --upgrade pip
-	$(VPY) -m pip install -q -e "backend[dev]"
+	$(VPY) -m pip install -q -r backend/requirements.lock
+	$(VPY) -m pip install -q --no-deps -e backend
 	npm --prefix frontend install
 	test -f .env || cp .env.example .env
 	test -f frontend/.env.local || cp frontend/.env.example frontend/.env.local
