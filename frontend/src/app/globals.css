@@ -1,0 +1,202 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-plex-sans);
+  --font-mono: var(--font-plex-mono);
+  --font-serif: var(--font-newsreader);
+  --font-heading: var(--font-newsreader);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-paper: var(--paper);
+  --color-rule: var(--rule);
+  --color-good: var(--good);
+
+  /* Air-quality scale, after CPCB's PM2.5 bands */
+  --color-aq-good: var(--aq-good);
+  --color-aq-satisfactory: var(--aq-satisfactory);
+  --color-aq-moderate: var(--aq-moderate);
+  --color-aq-poor: var(--aq-poor);
+  --color-aq-very-poor: var(--aq-very-poor);
+  --color-aq-severe: var(--aq-severe);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: #f3f1eb;
+  --paper: #f8f6f1;
+  --foreground: #16161a;
+  --card: #fbfaf7;
+  --card-foreground: #16161a;
+  --popover: #fdfcfa;
+  --popover-foreground: #16161a;
+  --primary: #16161a;
+  --primary-foreground: #f6f4ef;
+  --secondary: #e8e5dc;
+  --secondary-foreground: #16161a;
+  --muted: #ebe8e0;
+  --muted-foreground: #66645d;
+  --accent: #e4e0d5;
+  --accent-foreground: #16161a;
+  --destructive: #b3261e;
+  --border: #dcd8cd;
+  --rule: #cbc6b8;
+  --input: #d3cfc3;
+  --ring: #16161a66;
+  --good: #23784a;
+
+  --aq-good: #3f9a5b;
+  --aq-satisfactory: #97b83a;
+  --aq-moderate: #dfb12c;
+  --aq-poor: #e3822e;
+  --aq-very-poor: #cf3f2e;
+  --aq-severe: #8a1c3e;
+}
+
+.dark {
+  --background: #0f0f0d;
+  --paper: #141412;
+  --foreground: #ebe8e0;
+  --card: #171714;
+  --card-foreground: #ebe8e0;
+  --popover: #1c1c19;
+  --popover-foreground: #ebe8e0;
+  --primary: #ebe8e0;
+  --primary-foreground: #121210;
+  --secondary: #24231f;
+  --secondary-foreground: #ebe8e0;
+  --muted: #1f1e1b;
+  --muted-foreground: #9b988f;
+  --accent: #2a2925;
+  --accent-foreground: #ebe8e0;
+  --destructive: #ef6b5e;
+  --border: #ebe8e01a;
+  --rule: #ebe8e02e;
+  --input: #ebe8e029;
+  --ring: #ebe8e066;
+  --good: #5cc488;
+
+  --aq-good: #4fae6c;
+  --aq-satisfactory: #a6c64a;
+  --aq-moderate: #e6bd3c;
+  --aq-poor: #ec8d3a;
+  --aq-very-poor: #e2513f;
+  --aq-severe: #b33a5f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-feature-settings: "ss02", "cv05";
+  }
+  body {
+    @apply bg-background text-foreground;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: color-mix(in oklab, var(--aq-moderate) 45%, transparent);
+  }
+
+  /* Tailwind v4 leaves buttons with the default arrow; everything clickable gets a pointer. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="option"],
+  [role="menuitem"],
+  [data-slot="sheet-trigger"],
+  [data-slot="popover-trigger"],
+  [data-slot="tooltip-trigger"],
+  a[href],
+  summary,
+  label[for],
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  [data-slot="slider-thumb"] {
+    cursor: grab;
+  }
+  [data-slot="slider-thumb"]:active {
+    cursor: grabbing;
+  }
+}
+
+@layer utilities {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  /* Hairline rule used in editorial section headers */
+  .rule-top {
+    border-top: 1px solid var(--rule);
+  }
+  .grain {
+    background-image: radial-gradient(color-mix(in oklab, var(--foreground) 7%, transparent) 0.5px, transparent 0.6px);
+    background-size: 3px 3px;
+  }
+}
+
+/* MapLibre tweaks so the map matches the UI */
+.maplibregl-ctrl-attrib {
+  font-family: var(--font-plex-sans);
+  font-size: 10px !important;
+  background: color-mix(in oklab, var(--paper) 85%, transparent) !important;
+}
+.maplibregl-ctrl-group {
+  background: var(--popover) !important;
+  border: 1px solid var(--border);
+  box-shadow: none !important;
+}
+.dark .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(0.9);
+}
+.maplibregl-popup-content {
+  background: var(--popover) !important;
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: 8px !important;
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.35) !important;
+  padding: 10px 12px !important;
+  font-family: var(--font-plex-sans);
+}
+.maplibregl-popup-tip {
+  display: none;
+}

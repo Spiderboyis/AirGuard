@@ -1,0 +1,182 @@
+[
+ {
+  "name": "Hauz Khas Village",
+  "area": "South Delhi",
+  "lat": 28.55337,
+  "lon": 77.19485
+ },
+ {
+  "name": "DU North Campus",
+  "area": "North Delhi",
+  "lat": 28.68815,
+  "lon": 77.21004
+ },
+ {
+  "name": "Connaught Place",
+  "area": "Central Delhi",
+  "lat": 28.63177,
+  "lon": 77.21938
+ },
+ {
+  "name": "India Gate",
+  "area": "Central Delhi",
+  "lat": 28.61293,
+  "lon": 77.22949
+ },
+ {
+  "name": "IIT Delhi",
+  "area": "South Delhi",
+  "lat": 28.545,
+  "lon": 77.18915
+ },
+ {
+  "name": "AIIMS",
+  "area": "South Delhi",
+  "lat": 28.56454,
+  "lon": 77.20997
+ },
+ {
+  "name": "Lajpat Nagar",
+  "area": "South Delhi",
+  "lat": 28.56899,
+  "lon": 77.24083
+ },
+ {
+  "name": "Nehru Place",
+  "area": "South Delhi",
+  "lat": 28.54926,
+  "lon": 77.25295
+ },
+ {
+  "name": "Saket",
+  "area": "South Delhi",
+  "lat": 28.52934,
+  "lon": 77.21832
+ },
+ {
+  "name": "Karol Bagh",
+  "area": "Central Delhi",
+  "lat": 28.653,
+  "lon": 77.18902
+ },
+ {
+  "name": "Chandni Chowk",
+  "area": "Old Delhi",
+  "lat": 28.65598,
+  "lon": 77.23219
+ },
+ {
+  "name": "Kashmere Gate ISBT",
+  "area": "North Delhi",
+  "lat": 28.6687,
+  "lon": 77.23042
+ },
+ {
+  "name": "New Delhi Railway Station",
+  "area": "Central Delhi",
+  "lat": 28.64028,
+  "lon": 77.22041
+ },
+ {
+  "name": "Rajiv Chowk Metro",
+  "area": "Central Delhi",
+  "lat": 28.63282,
+  "lon": 77.21966
+ },
+ {
+  "name": "Dwarka Sector 21",
+  "area": "South West Delhi",
+  "lat": 28.56154,
+  "lon": 77.06671
+ },
+ {
+  "name": "Janakpuri",
+  "area": "West Delhi",
+  "lat": 28.62926,
+  "lon": 77.08046
+ },
+ {
+  "name": "Rohini Sector 18",
+  "area": "North West Delhi",
+  "lat": 28.73838,
+  "lon": 77.13985
+ },
+ {
+  "name": "DTU",
+  "area": "North West Delhi",
+  "lat": 28.75082,
+  "lon": 77.11628
+ },
+ {
+  "name": "Okhla Phase 2",
+  "area": "South East Delhi",
+  "lat": 28.53595,
+  "lon": 77.2693
+ },
+ {
+  "name": "Jamia Millia Islamia",
+  "area": "South East Delhi",
+  "lat": 28.55849,
+  "lon": 77.28116
+ },
+ {
+  "name": "Anand Vihar ISBT",
+  "area": "East Delhi",
+  "lat": 28.64898,
+  "lon": 77.31829
+ },
+ {
+  "name": "Mayur Vihar Phase 1",
+  "area": "East Delhi",
+  "lat": 28.61193,
+  "lon": 77.29592
+ },
+ {
+  "name": "JNU",
+  "area": "South West Delhi",
+  "lat": 28.54017,
+  "lon": 77.16456
+ },
+ {
+  "name": "Vasant Kunj",
+  "area": "South West Delhi",
+  "lat": 28.52925,
+  "lon": 77.15413
+ },
+ {
+  "name": "GK II M Block Market",
+  "area": "South Delhi",
+  "lat": 28.53446,
+  "lon": 77.24386
+ },
+ {
+  "name": "Lodhi Garden",
+  "area": "Central Delhi",
+  "lat": 28.59034,
+  "lon": 77.22029
+ },
+ {
+  "name": "Noida Sector 18",
+  "area": "Noida",
+  "lat": 28.57076,
+  "lon": 77.32608
+ },
+ {
+  "name": "Cyber City Gurugram",
+  "area": "Gurugram",
+  "lat": 28.49731,
+  "lon": 77.0918
+ },
+ {
+  "name": "Punjabi Bagh",
+  "area": "West Delhi",
+  "lat": 28.673,
+  "lon": 77.14612
+ },
+ {
+  "name": "Mukherjee Nagar",
+  "area": "North Delhi",
+  "lat": 28.71256,
+  "lon": 77.2144
+ }
+]
