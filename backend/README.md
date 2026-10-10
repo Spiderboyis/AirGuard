@@ -4,7 +4,7 @@ Python package `airguard`: forecast pipeline, exposure engine, FastAPI service a
 See the [project README](../README.md) and [docs/](../docs) for the full picture.
 
 ```bash
-pip install -e "backend[dev]"      # from the repository root
+pip install -r backend/requirements.lock && pip install --no-deps -e backend   # from the repo root
 cd backend && pytest               # unit tests
 uvicorn airguard.api.main:app --reload --port 8000
 ```

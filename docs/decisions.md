@@ -45,6 +45,19 @@ gets two tools; identical repeat calls return the earlier result with a nudge; e
 against tool outputs; any failure falls back to a deterministic explanation that says so. On AWS the same
 code runs against Amazon Bedrock.
 
+### Pinned backend dependencies
+pip's resolver stalled for minutes on the open-ended requirements in `pyproject.toml`. Setup and CI install
+the exact tested versions from `backend/requirements.lock`, then the package itself with `--no-deps`.
+
+### Repository and licence
+The code lives in the team repository (github.com/Spiderboyis/AirGuard), which is Apache-2.0; the
+project's README and `pyproject.toml` follow that licence.
+
+### Landing page shows a real result
+The hero is the actual analysis for one demo ride: the forecast along the route over the next hours, with
+the ride drawn as a window of its own duration. Earlier attempts (stat cards, then per-departure colour
+strips) didn't explain why leaving later helps; a window sliding along the day's air does.
+
 ### Next.js 16 with cache components, shadcn/ui on Base UI
 Interactive pages are client components fed by the API. The persisted profile is applied on the first
 client render to avoid hydration mismatches. MapLibre's worker is served from `/public` because the

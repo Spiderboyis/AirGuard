@@ -3,6 +3,26 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased] - 2026-10-10
+
+### Added
+- Landing page rebuilt around live data: a ride-window chart (forecast along the demo route with the ride
+  as a window you can slide to other departures), an annotated route figure, a "won't do" list, a
+  computed evidence sentence, and a CPCB-coloured scroll progress bar.
+- `POST /trips/preview`: unsaved analysis plus corridor forecast and per-departure exposure.
+- Assistant: "New chat" button; a new trip starts a fresh conversation.
+- `make start` and `make stop`; `backend/requirements.lock` for reproducible installs.
+
+### Changed
+- Planner tabs sit at the top of the panel; the assistant view pins the message box and collapses the
+  trip form to a summary.
+- Map limited to Delhi NCR; basemap tile failures are logged as warnings.
+- Pointer cursor on every clickable control.
+- The number guard accepts values from the user's own profile; explanations distinguish "outside your
+  limits" from "not worth the time".
+- API accepts any localhost port in local development.
+- Licence aligned with the repository (Apache-2.0).
+
 ## [0.1.0] - 2026-10-09
 
 ### Added

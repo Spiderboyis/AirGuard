@@ -19,7 +19,7 @@ Open the app in a clean browser profile at 1440×900, light theme. Warm the mode
 
 | Time | Screen | Say |
 | --- | --- | --- |
-| 0:00 | Landing page | "Riya cycles from Hauz Khas to North Campus. Delhi's AQI apps tell her the air is bad. None tell her what to do about it." |
+| 0:00 | Landing page, ride-window chart | "Riya cycles from Hauz Khas to North Campus. Delhi's AQI apps tell her the air is bad. None tell her what to do about it." Drag the "Try another departure" slider: "This curve is the forecast along her route; the box is her ride. Slide it, and you can see what leaving later does." |
 | 0:15 | Onboarding: cycle → sensitive → limits | "She sets up once: she cycles, she has asthma, and she'll accept 15 extra minutes on the road and up to two hours' wait. Look: a 30-minute wait now needs at least a 22% cut to be worth it." |
 | 0:40 | Planner: plan the trip | "AirGuard pulls real routes and scores every 200 metres against the PM2.5 forecast for the minute she'd be there." |
 | 0:55 | Recommendation + map toggle | Read the headline from `docs/headline.json`: "+X minutes, −Y% exposure." Toggle "leaving now / leaving later" on the map. |

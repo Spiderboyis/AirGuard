@@ -61,6 +61,12 @@ flowchart LR
 6. The result is saved in `trips` and returned with a `trip_id`; the assistant reads it back with
    `get_trip_result` instead of recomputing.
 
+## Landing-page preview
+
+`POST /trips/preview` runs the same analysis without saving it and adds two things for the landing page:
+the forecast PM2.5 along the recommended route every 10 minutes (the curve), and the exposure index for
+every 15-minute departure (the ride windows and the slider). It is cached for five minutes.
+
 ## Hourly pipeline
 
 1. `ingestion.sync.sync_measurements` fetches new hourly PM2.5 for each station since its newest stored hour.

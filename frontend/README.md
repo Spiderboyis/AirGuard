@@ -4,8 +4,8 @@ Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui on Base UI, Motion, MapLibre 
 
 ```bash
 npm install          # also copies MapLibre's worker into public/maplibre
-npm run dev          # http://localhost:3000, expects the API on NEXT_PUBLIC_API_URL
-npm run lint && npm run typecheck
+npm run dev          # http://localhost:3000 (next free port if taken); API at NEXT_PUBLIC_API_URL
+npm run lint && npm run typecheck   # typecheck runs `next typegen` first
 npm run gen:types    # regenerate src/lib/api-types.ts from ../contracts/openapi.json
 ```
 
@@ -13,12 +13,13 @@ npm run gen:types    # regenerate src/lib/api-types.ts from ../contracts/openapi
 
 | Path | Contents |
 | --- | --- |
-| `src/app/page.tsx` | Landing page |
+| `src/app/page.tsx` | Landing page: live ride-window chart, annotated route, evidence |
 | `src/app/welcome/` | Onboarding (profile saved in local storage) |
 | `src/app/plan/` | Trip planner: form, map, recommendation, departure chart, routes, assistant |
 | `src/app/evidence/` | Backtest results |
 | `src/app/method/` | Method and assumptions, rendered from the API's `/meta` |
-| `src/components/air/` | Air-quality primitives: exposure strip, risk badge, confidence meter, legend |
+| `src/components/air/` | Air-quality primitives: exposure strip, risk badge, confidence meter, legend, CPCB band and scroll indicator |
+| `src/components/landing/` | Landing-page figures: ride-window chart and annotated route |
 | `src/components/map/` | MapLibre map with stations and PM2.5-coloured route segments |
 | `src/components/plan/` | Planner panels and the streaming assistant |
 | `src/lib/` | Typed API client, AQ scale, formatting, profile store |
