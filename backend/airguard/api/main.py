@@ -253,6 +253,17 @@ def trips_analyze(req: S.TripRequest):
         max_wait_min=req.max_wait_min, origin_name=req.origin.name, destination_name=req.destination.name)
 
 
+@app.post("/trips/preview", response_model=S.TripPreview, tags=["trips"], responses=ERRORS)
+def trips_preview(req: S.TripRequest):
+    """An analysis that isn't saved, plus PM2.5 along the recommended route for every 15-minute
+    departure (the 'departure strips' on the landing page). Cached for five minutes."""
+    return trips.preview(
+        origin={"lat": req.origin.lat, "lon": req.origin.lon}, destination={"lat": req.destination.lat,
+                                                                           "lon": req.destination.lon},
+        mode=req.mode, sensitivity=req.sensitivity, window_h=req.window_h, max_extra_min=req.max_extra_min,
+        max_wait_min=req.max_wait_min, origin_name=req.origin.name, destination_name=req.destination.name)
+
+
 @app.get("/trips/{trip_id}", response_model=S.TripResult, tags=["trips"], responses={404: {"model": S.ErrorResponse}})
 def trip_get(trip_id: str):
     t = trips.get(trip_id)

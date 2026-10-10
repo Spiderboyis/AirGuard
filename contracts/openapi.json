@@ -452,6 +452,78 @@
         }
       }
     },
+    "/trips/preview": {
+      "post": {
+        "tags": [
+          "trips"
+        ],
+        "summary": "Trips Preview",
+        "description": "An analysis that isn't saved, plus PM2.5 along the recommended route for every 15-minute\ndeparture (the 'departure strips' on the landing page). Cached for five minutes.",
+        "operationId": "trips_preview_trips_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TripRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TripPreview"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/trips/{trip_id}": {
       "get": {
         "tags": [
@@ -728,6 +800,17 @@
             ],
             "title": "Source"
           },
+          "fallback_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fallback Reason"
+          },
           "model": {
             "anyOf": [
               {
@@ -738,6 +821,17 @@
               }
             ],
             "title": "Model"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ms"
           }
         },
         "type": "object",
@@ -1828,6 +1922,91 @@
         ],
         "title": "StationsResponse"
       },
+      "StripRow": {
+        "properties": {
+          "wait_min": {
+            "type": "integer",
+            "title": "Wait Min"
+          },
+          "depart_at": {
+            "type": "string",
+            "title": "Depart At"
+          },
+          "exposure_index": {
+            "type": "number",
+            "title": "Exposure Index"
+          },
+          "mean_pm25": {
+            "type": "number",
+            "title": "Mean Pm25"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "pm25": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Pm25"
+          },
+          "minutes": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array",
+            "title": "Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wait_min",
+          "depart_at",
+          "exposure_index",
+          "mean_pm25",
+          "confidence",
+          "pm25",
+          "minutes"
+        ],
+        "title": "StripRow"
+      },
+      "Strips": {
+        "properties": {
+          "route_id": {
+            "type": "string",
+            "title": "Route Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "distance_km": {
+            "type": "number",
+            "title": "Distance Km"
+          },
+          "duration_min": {
+            "type": "number",
+            "title": "Duration Min"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/StripRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "route_id",
+          "label",
+          "distance_km",
+          "duration_min",
+          "rows"
+        ],
+        "title": "Strips"
+      },
       "ToolCall": {
         "properties": {
           "name": {
@@ -1966,6 +2145,22 @@
           "lon"
         ],
         "title": "TripPlace"
+      },
+      "TripPreview": {
+        "properties": {
+          "trip": {
+            "$ref": "#/components/schemas/TripResult"
+          },
+          "strips": {
+            "$ref": "#/components/schemas/Strips"
+          }
+        },
+        "type": "object",
+        "required": [
+          "trip",
+          "strips"
+        ],
+        "title": "TripPreview"
       },
       "TripRequest": {
         "properties": {

@@ -40,3 +40,30 @@ export function bandHex(pm25: number, dark = false) {
   const i = BANDS.findIndex((b) => pm25 <= b.max);
   return (dark ? BAND_HEX.dark : BAND_HEX.light)[i < 0 ? 5 : i];
 }
+
+/**
+ * Continuous colour on the same CPCB scale: interpolates between band colours anchored at band
+ * midpoints, so small differences (e.g. 44 vs 52 µg/m³) stay visible inside one band.
+ * Pure CSS (color-mix over the theme variables), so it follows light and dark mode.
+ */
+const ANCHORS: [number, string][] = [
+  [15, "--aq-good"],
+  [45, "--aq-satisfactory"],
+  [75, "--aq-moderate"],
+  [105, "--aq-poor"],
+  [185, "--aq-very-poor"],
+  [300, "--aq-severe"],
+];
+
+export function pmColor(pm25: number) {
+  if (pm25 <= ANCHORS[0][0]) return `var(${ANCHORS[0][1]})`;
+  for (let i = 1; i < ANCHORS.length; i++) {
+    const [hi, hv] = ANCHORS[i];
+    if (pm25 <= hi) {
+      const [lo, lv] = ANCHORS[i - 1];
+      const t = Math.round(((pm25 - lo) / (hi - lo)) * 100);
+      return `color-mix(in oklab, var(${hv}) ${t}%, var(${lv}))`;
+    }
+  }
+  return `var(${ANCHORS[ANCHORS.length - 1][1]})`;
+}

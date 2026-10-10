@@ -182,6 +182,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trips/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trips Preview
+         * @description An analysis that isn't saved, plus PM2.5 along the recommended route for every 15-minute
+         *     departure (the 'departure strips' on the landing page). Cached for five minutes.
+         */
+        post: operations["trips_preview_trips_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trips/{trip_id}": {
         parameters: {
             query?: never;
@@ -271,8 +292,12 @@ export interface components {
              * @enum {string}
              */
             source: "model" | "fallback" | "cache";
+            /** Fallback Reason */
+            fallback_reason?: string | null;
             /** Model */
             model?: string | null;
+            /** Ms */
+            ms?: number | null;
         };
         /** ChatTurn */
         ChatTurn: {
@@ -629,6 +654,36 @@ export interface components {
             /** Stations */
             stations: components["schemas"]["StationSummary"][];
         };
+        /** StripRow */
+        StripRow: {
+            /** Wait Min */
+            wait_min: number;
+            /** Depart At */
+            depart_at: string;
+            /** Exposure Index */
+            exposure_index: number;
+            /** Mean Pm25 */
+            mean_pm25: number;
+            /** Confidence */
+            confidence: number;
+            /** Pm25 */
+            pm25: number[];
+            /** Minutes */
+            minutes: number[];
+        };
+        /** Strips */
+        Strips: {
+            /** Route Id */
+            route_id: string;
+            /** Label */
+            label: string;
+            /** Distance Km */
+            distance_km: number;
+            /** Duration Min */
+            duration_min: number;
+            /** Rows */
+            rows: components["schemas"]["StripRow"][];
+        };
         /** ToolCall */
         ToolCall: {
             /** Name */
@@ -678,6 +733,11 @@ export interface components {
             lon: number;
             /** Name */
             name?: string | null;
+        };
+        /** TripPreview */
+        TripPreview: {
+            trip: components["schemas"]["TripResult"];
+            strips: components["schemas"]["Strips"];
         };
         /** TripRequest */
         TripRequest: {
@@ -1080,6 +1140,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TripResult"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    trips_preview_trips_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TripRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TripPreview"];
                 };
             };
             /** @description Unprocessable Entity */

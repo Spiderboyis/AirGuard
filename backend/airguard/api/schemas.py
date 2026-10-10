@@ -180,6 +180,29 @@ class TripResult(BaseModel):
     data: TripData
 
 
+class StripRow(BaseModel):
+    wait_min: int
+    depart_at: str
+    exposure_index: float
+    mean_pm25: float
+    confidence: float
+    pm25: list[float]
+    minutes: list[float]
+
+
+class Strips(BaseModel):
+    route_id: str
+    label: str
+    distance_km: float
+    duration_min: float
+    rows: list[StripRow]
+
+
+class TripPreview(BaseModel):
+    trip: TripResult
+    strips: Strips
+
+
 class RoutesScoreResponse(BaseModel):
     routes: list[RouteScore]
     data: TripData

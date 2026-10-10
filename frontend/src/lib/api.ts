@@ -13,6 +13,8 @@ export type EvalResponse = Schemas["EvalResponse"];
 export type EvalRow = Schemas["EvalRow"];
 export type ToolCall = Schemas["ToolCall"];
 export type ChatResponse = Schemas["ChatResponse"];
+export type TripPreview = Schemas["TripPreview"];
+export type StripRow = Schemas["StripRow"];
 export type Mode = TripRequest["mode"];
 export type Sensitivity = TripRequest["sensitivity"];
 
@@ -58,6 +60,7 @@ export const api = {
   evaluation: () => request<EvalResponse>("/eval"),
   geocode: (q: string) => request<GeocodeResult[]>(`/geocode?q=${encodeURIComponent(q)}`),
   analyze: (body: TripRequest) => request<TripResult>("/trips/analyze", { method: "POST", body: JSON.stringify(body) }),
+  preview: (body: TripRequest) => request<TripPreview>("/trips/preview", { method: "POST", body: JSON.stringify(body) }),
   trip: (id: string) => request<TripResult>(`/trips/${id}`),
 };
 
