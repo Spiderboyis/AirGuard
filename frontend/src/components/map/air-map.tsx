@@ -113,6 +113,11 @@ export function AirMap({ stations, routes, origin, destination, onRouteClick, in
       instance.touchZoomRotate?.disableRotation();
       // A basemap tile that fails to download (flaky network, ad blocker, CDN hiccup) only leaves a
       // blank square; MapLibre retries on the next move. Don't surface it as an application error.
+      // The basemap style references a few decorative patterns its sprite doesn't ship; fill them
+      // with a transparent pixel instead of logging a warning per tile.
+      instance.on("styleimagemissing", (e) => {
+        if (!instance!.hasImage(e.id)) instance!.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+      });
       instance.on("error", (e) => {
         const err = e.error as (Error & { status?: number; url?: string }) | undefined;
         if (err?.name === "AJAXError" || err?.url) {

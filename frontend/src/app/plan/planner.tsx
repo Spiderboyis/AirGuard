@@ -265,7 +265,8 @@ export function Planner() {
                     </span>
                     <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
                   </button>
-                  <DepartureChart trip={trip} selected={selected} />
+                  {/* Rendered only while visible: the chart measures its container on mount. */}
+                  {tab === "plan" && <DepartureChart trip={trip} selected={selected} />}
                   <RouteList trip={trip} selected={selected} onSelect={setSelected} />
                   <p className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">
                     Forecast issued {istDateTime(trip.data.forecast_issued_at)} IST · model{" "}

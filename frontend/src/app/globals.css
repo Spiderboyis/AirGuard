@@ -126,6 +126,35 @@
   ::selection {
     background: color-mix(in oklab, var(--aq-moderate) 45%, transparent);
   }
+
+  /* Tailwind v4 leaves buttons with the default arrow; everything clickable gets a pointer. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"],
+  [role="radio"],
+  [role="option"],
+  [role="menuitem"],
+  [data-slot="sheet-trigger"],
+  [data-slot="popover-trigger"],
+  [data-slot="tooltip-trigger"],
+  a[href],
+  summary,
+  label[for],
+  select,
+  input[type="checkbox"],
+  input[type="radio"] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  [data-slot="slider-thumb"] {
+    cursor: grab;
+  }
+  [data-slot="slider-thumb"]:active {
+    cursor: grabbing;
+  }
 }
 
 @layer utilities {
