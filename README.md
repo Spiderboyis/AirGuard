@@ -89,7 +89,7 @@ make db-start                    # local Supabase + migrations
 make backfill                    # ~20 min: a year of station, weather, CAMS and fire data
 make train                       # trains the models and writes the backtest
 make forecast                    # issues the current forecast
-make dev                         # API on :8000, web app on :3000 (or the next free port)
+make dev                         # API on :8000, web app on :3000
 make stop                        # when you're done: stops everything, keeps the data
 ```
 

@@ -20,7 +20,6 @@ All notable changes to this project are documented here. The format follows
 - Pointer cursor on every clickable control.
 - The number guard accepts values from the user's own profile; explanations distinguish "outside your
   limits" from "not worth the time".
-- API accepts any localhost port in local development.
 - Licence aligned with the repository (Apache-2.0).
 
 ## [0.1.0] - 2026-10-09

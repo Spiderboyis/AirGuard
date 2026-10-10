@@ -60,12 +60,12 @@ make forecast       # fetches the latest hour and issues a forecast
 ## 5. Run
 
 ```bash
-make dev            # API on :8000; web on :3000, or the next free port if 3000 is taken
+make dev            # API on :8000 and web on :3000
 make hourly         # optional, in another terminal: refresh forecasts every hour
 ```
 
-Open the web address `make dev` prints (usually <http://localhost:3000>). The API docs are at
-<http://localhost:8000/docs>. In local development the API accepts requests from any `localhost` port.
+Open <http://localhost:3000>. The API docs are at <http://localhost:8000/docs>. The web app always uses
+port 3000; if another app is already on it, stop that one first.
 
 ## 6. Stop
 

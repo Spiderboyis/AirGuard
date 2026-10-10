@@ -15,5 +15,4 @@ Report a vulnerability) with steps to reproduce. We aim to reply within a few da
   stored without any user identifier.
 - Every request is validated server-side (coordinates must be inside Delhi NCR, modes and limits are
   enumerated and bounded). The assistant endpoints are rate-limited per IP.
-- CORS is restricted to the configured web origins (`ALLOWED_ORIGINS`). Only when those are local
-  addresses does the API also accept any `localhost` port, for development.
+- CORS is restricted to the configured web origins (`ALLOWED_ORIGINS`).

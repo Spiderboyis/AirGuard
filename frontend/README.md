@@ -4,7 +4,7 @@ Next.js 16 (App Router), Tailwind CSS 4, shadcn/ui on Base UI, Motion, MapLibre 
 
 ```bash
 npm install          # also copies MapLibre's worker into public/maplibre
-npm run dev          # http://localhost:3000 (next free port if taken); API at NEXT_PUBLIC_API_URL
+npm run dev          # http://localhost:3000; expects the API on NEXT_PUBLIC_API_URL
 npm run lint && npm run typecheck   # typecheck runs `next typegen` first
 npm run gen:types    # regenerate src/lib/api-types.ts from ../contracts/openapi.json
 ```

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     agent_rate_limit_per_min: int = 8
 
-    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
+    allowed_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     demo_snapshot: str = ""
 
     @property
