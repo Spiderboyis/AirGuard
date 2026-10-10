@@ -36,8 +36,12 @@ app = FastAPI(
     version=__version__,
     description="Route and departure-time advice for Delhi commuters, from a validated PM2.5 forecast.",
 )
-app.add_middleware(CORSMiddleware, allow_origins=settings().origins, allow_methods=["GET", "POST"],
-                   allow_headers=["*"])
+# Explicit origins from ALLOWED_ORIGINS; in local development any localhost port is accepted too, so
+# the web app can run wherever a free port is.
+_local_dev = any("localhost" in o or "127.0.0.1" in o for o in settings().origins)
+app.add_middleware(CORSMiddleware, allow_origins=settings().origins,
+                   allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?" if _local_dev else None,
+                   allow_methods=["GET", "POST"], allow_headers=["*"])
 
 ERRORS = {code: {"model": S.ErrorResponse} for code in (422, 429, 502, 503)}
 
