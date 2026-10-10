@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { BandRule } from "@/components/air/band-rule";
+import { ScrollBand } from "@/components/air/scroll-band";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteHeader } from "@/components/site/site-header";
 
@@ -28,7 +29,7 @@ function SectionHead({ title, children }: { title: string; children?: React.Reac
 export default function Home() {
   return (
     <div className="flex min-h-dvh flex-col">
-      <BandRule />
+      <ScrollBand />
       <SiteHeader className="sticky top-0" />
 
       <main>
