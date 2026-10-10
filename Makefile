@@ -78,7 +78,17 @@ snapshot: ## Freeze the current forecast and demo trips for a reproducible demo
 # ---------------------------------------------------------------------------------------------
 # Run
 # ---------------------------------------------------------------------------------------------
-.PHONY: api web dev
+.PHONY: start stop api web dev
+start: db-start dev ## Start the database, then the API and web app
+
+stop: ## Stop everything: web app, API, hourly job, local LLM and the database
+	-pkill -f "airguard.api.main:app" || true
+	-pkill -f "$(CURDIR)/frontend/node_modules/.bin/next" || true
+	-pkill -f "airguard.jobs.hourly" || true
+	-ollama stop $(OLLAMA_MODEL) 2>/dev/null || true
+	$(SUPABASE) stop
+	@echo "AirGuard stopped. Your data is kept; 'make start' brings it back."
+
 api: ## Run the API on :8000
 	cd backend && ../$(VPY) -m uvicorn airguard.api.main:app --reload --port 8000
 

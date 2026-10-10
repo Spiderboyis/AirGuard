@@ -31,8 +31,13 @@ def explain_trip(t: dict) -> str:
                  f"and forecast uncertainty).")
     low = s["lowest_possible_in_window"]
     if low["exposure_index"] < rec["exposure_index"]:
+        lim = t["limits"]
+        extra = low["duration_min"] - base["duration_min"]
+        outside = low["wait_min"] > lim["max_wait_min"] or extra > lim["max_extra_min"]
+        why = ("it falls outside your time limits" if outside
+               else f"the saving isn't worth the extra time for a {t['sensitivity']} profile")
         lines.append(f"The cleanest option in the window is {low['route']} at {low['leave_at_ist']} "
-                     f"(index {low['exposure_index']}), but it falls outside your time limits.")
+                     f"(index {low['exposure_index']}), but {why}.")
     d = s["data"]
     if d["stations_with_delayed_feed"]:
         lines.append(f"Note: {d['stations_with_delayed_feed']} of {d['stations']} stations have a delayed feed, "

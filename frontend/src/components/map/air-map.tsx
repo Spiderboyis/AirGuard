@@ -31,6 +31,8 @@ const STYLE = {
   dark: process.env.NEXT_PUBLIC_MAP_STYLE_URL_DARK ?? "https://tiles.openfreemap.org/styles/dark",
 };
 const DELHI: [number, number] = [77.16, 28.62];
+// Delhi NCR with room to pan: [[west, south], [east, north]]
+const NCR_BOUNDS: [[number, number], [number, number]] = [[76.35, 27.95], [78.0, 29.35]];
 
 function stationFC(stations: StationSummary[] = []) {
   return {
@@ -98,6 +100,10 @@ export function AirMap({ stations, routes, origin, destination, onRouteClick, in
         style: props.current.dark ? STYLE.dark : STYLE.light,
         center: DELHI,
         zoom: 10.2,
+        // AirGuard covers Delhi NCR only; keep the camera there.
+        minZoom: 8.5,
+        maxZoom: 17,
+        maxBounds: NCR_BOUNDS,
         attributionControl: { compact: true },
         interactive,
         dragRotate: false,
@@ -105,6 +111,16 @@ export function AirMap({ stations, routes, origin, destination, onRouteClick, in
       });
       if (interactive) instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "bottom-right");
       instance.touchZoomRotate?.disableRotation();
+      // A basemap tile that fails to download (flaky network, ad blocker, CDN hiccup) only leaves a
+      // blank square; MapLibre retries on the next move. Don't surface it as an application error.
+      instance.on("error", (e) => {
+        const err = e.error as (Error & { status?: number; url?: string }) | undefined;
+        if (err?.name === "AJAXError" || err?.url) {
+          console.warn("Map tile unavailable:", err.url ?? err.message);
+          return;
+        }
+        console.warn("Map error:", err?.message ?? e);
+      });
 
       const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10 });
       instance.on("style.load", () => {

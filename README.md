@@ -90,6 +90,7 @@ make backfill                    # ~20 min: a year of station, weather, CAMS and
 make train                       # trains the models and writes the backtest
 make forecast                    # issues the current forecast
 make dev                         # API on :8000, web app on :3000
+make stop                        # when you're done: stops everything, keeps the data
 ```
 
 Full guide, phone testing and troubleshooting: [docs/setup.md](docs/setup.md).

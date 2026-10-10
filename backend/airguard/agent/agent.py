@@ -71,9 +71,10 @@ def _fallback(message: str, trip_id: str | None, tr: Trace, reason: str) -> dict
     return {"answer": answer, "source": "fallback", "fallback_reason": reason}
 
 
-def _finish(text: str, message: str, trip_id: str | None, tr: Trace) -> dict:
+def _finish(text: str, message: str, trip_id: str | None, tr: Trace, profile: dict | None = None) -> dict:
     text = THINK.sub("", text).strip()
-    ok, bad = guard.check(text, [c["output"] for c in tr.calls], message)
+    # The user's own settings (shown to the model in the system prompt) are legitimate sources too.
+    ok, bad = guard.check(text, [c["output"] for c in tr.calls] + [profile or {}], message)
     last_failed = bool(tr.calls) and not tr.calls[-1]["ok"]
     if text and ok and not (trip_id and last_failed):
         return {"answer": text, "source": "model", "grounded": True, "ungrounded_numbers": []}
@@ -146,7 +147,7 @@ async def stream(message: str, profile: dict | None, trip_id: str | None,
                 result = _fallback(message, trip_id, tr, f"model error: {error[0].__class__.__name__}")
                 result.update(grounded=True, ungrounded_numbers=[])
             else:
-                result = _finish("".join(text_parts), message, trip_id, tr)
+                result = _finish("".join(text_parts), message, trip_id, tr, profile)
         while not tr.queue.empty():
             yield tr.queue.get_nowait()
         yield {"type": "done", **result, "tool_calls": tr.calls, "model": model_label() if model else None,

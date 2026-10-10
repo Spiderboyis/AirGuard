@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpIcon, CheckIcon, ChevronRightIcon, CircleAlertIcon, LoaderIcon, SquareIcon } from "lucide-react";
+import { ArrowUpIcon, CheckIcon, ChevronRightIcon, CircleAlertIcon, LoaderIcon, RotateCcwIcon, SquareIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useEffect, useRef, useState } from "react";
 
@@ -106,14 +106,33 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const abort = useRef<AbortController | null>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  // Bumped on every reset so a stream that is still arriving can't write into the new chat.
+  const session = useRef(0);
 
+  // Scroll only the message list (scrollIntoView would also scroll the panel and the page).
   useEffect(() => {
-    end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const el = list.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [msgs]);
 
-  const patchLast = (fn: (m: Msg) => Msg) =>
+  const reset = () => {
+    session.current += 1;
+    abort.current?.abort();
+    abort.current = null;
+    setBusy(false);
+    setMsgs([]);
+    setText("");
+    input.current?.focus();
+  };
+
+  // Stop any answer still streaming when the chat goes away (the planner remounts it per trip).
+  useEffect(() => () => abort.current?.abort(), []);
+
+  const patchFor = (sid: number) => (fn: (m: Msg) => Msg) =>
     setMsgs((all) => {
+      if (sid !== session.current || !all.length) return all;
       const copy = [...all];
       copy[copy.length - 1] = fn(copy[copy.length - 1]);
       return copy;
@@ -126,6 +145,8 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
       .filter((m) => m.status !== "error" && m.content)
       .map((m) => ({ role: m.role, content: m.content }))
       .slice(-6);
+    const sid = session.current;
+    const patchLast = patchFor(sid);
     setMsgs((m) => [...m, { role: "user", content: q }, { role: "assistant", content: "", tools: [], status: "streaming" }]);
     setText("");
     setBusy(true);
@@ -183,8 +204,10 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
         patchLast((m) => ({ ...m, status: "done" }));
       }
     } finally {
-      setBusy(false);
-      abort.current = null;
+      if (sid === session.current) {
+        setBusy(false);
+        abort.current = null;
+      }
     }
   }
 
@@ -192,7 +215,20 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
 
   return (
     <div className={cn("flex min-h-0 flex-col", className)}>
-      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-1 pb-4">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b pb-2.5">
+        <p className="text-xs text-muted-foreground">
+          {tripId ? "Answers use the trip you planned" : "No trip planned yet"}
+        </p>
+        <button
+          type="button"
+          onClick={reset}
+          disabled={!msgs.length && !text}
+          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+        >
+          <RotateCcwIcon className="size-3.5" /> New chat
+        </button>
+      </div>
+      <div ref={list} className="min-h-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-1 pt-4 pb-4">
         {msgs.length === 0 && (
           <div className="space-y-4 pt-2">
             <div>
@@ -271,7 +307,6 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
             </motion.div>
           ))}
         </AnimatePresence>
-        <div ref={end} />
       </div>
       <form
         onSubmit={(e) => {
@@ -281,6 +316,7 @@ export function Assistant({ tripId, className }: { tripId: string | null; classN
         className="flex items-end gap-2 rounded-xl border bg-card p-1.5 focus-within:border-foreground/40"
       >
         <textarea
+          ref={input}
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {

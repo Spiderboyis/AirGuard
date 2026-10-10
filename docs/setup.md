@@ -66,6 +66,15 @@ make hourly         # optional, in another terminal: refresh forecasts every hou
 
 Open <http://localhost:3000>. The API docs are at <http://localhost:8000/docs>.
 
+## 6. Stop
+
+```bash
+make stop           # stops web, API, hourly job, unloads the LLM, stops Supabase
+```
+
+Data stays in the local database; `make start` (database + API + web) or `make db-start && make dev`
+brings everything back. If you started a process yourself in a terminal, `Ctrl+C` there works too.
+
 ### On your phone (same Wi-Fi)
 
 ```bash

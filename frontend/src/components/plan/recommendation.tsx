@@ -30,6 +30,9 @@ export function Recommendation({ trip }: { trip: TripResult }) {
   const sens = SENSITIVITY_COPY[trip.sensitivity].short.toLowerCase();
   const lowest = d.lowest;
   const cleanerElsewhere = lowest.exposure_index < rec.exposure_index - 0.5;
+  const lowestOutsideLimits =
+    lowest.wait_min > trip.limits.max_wait_min ||
+    lowest.duration_min - d.baseline.duration_min > trip.limits.max_extra_min;
 
   return (
     <motion.section
@@ -86,7 +89,7 @@ export function Recommendation({ trip }: { trip: TripResult }) {
             {" "}
             The cleanest option ({istTime(lowest.depart_at)}, {lowest.label}, {signedPct(
               (lowest.exposure_index / d.baseline.exposure_index - 1) * 100,
-            )}) falls outside your time limits.
+            )}) {lowestOutsideLimits ? "falls outside your time limits" : "saves too little for the extra time"}.
           </>
         )}
       </p>

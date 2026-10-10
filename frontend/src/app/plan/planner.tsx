@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowUpDownIcon, CircleAlertIcon, LoaderIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon, ArrowUpDownIcon, CircleAlertIcon, LoaderIcon, SparklesIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState, useSyncExternalStore } from "react";
@@ -121,7 +121,7 @@ export function Planner() {
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
       <SiteHeader compact />
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_1fr]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[440px_1fr] lg:grid-rows-[minmax(0,1fr)]">
         {/* Map */}
         <main className="relative h-[44vh] border-b lg:order-2 lg:h-auto lg:border-b-0">
           <AirMap
@@ -162,8 +162,41 @@ export function Planner() {
         </main>
 
         {/* Panel */}
-        <aside className="min-h-0 bg-paper lg:order-1 lg:overflow-y-auto lg:border-r">
-          <div className="space-y-5 p-4 sm:p-5">
+        <aside
+          className={cn(
+            "flex min-h-0 flex-col bg-paper lg:order-1 lg:border-r",
+            tab === "plan" ? "lg:overflow-y-auto" : "lg:overflow-hidden",
+          )}
+        >
+          {/* Tabs stay at the top of the panel so the assistant is always one click away. */}
+          <div
+            role="tablist"
+            aria-label="Planner views"
+            className="sticky top-0 z-20 flex shrink-0 gap-1 border-b bg-paper/95 px-4 pt-3 backdrop-blur sm:px-5"
+          >
+            {(
+              [
+                ["plan", "Plan"],
+                ["ask", "Ask AirGuard"],
+              ] as const
+            ).map(([k, label]) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => setTab(k)}
+                className={cn(
+                  "-mb-px flex items-center gap-1.5 border-b-2 px-2.5 pb-2.5 text-sm transition-colors",
+                  tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {k === "ask" && <SparklesIcon className="size-3.5" />}
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className={cn("space-y-5 p-4 sm:p-5", tab !== "plan" && "hidden")}>
             <form
               className="space-y-2.5"
               onSubmit={(e) => {
@@ -199,104 +232,118 @@ export function Planner() {
               <ProfileSheet onChanged={() => trip && run()} />
             </form>
 
-            <div className="flex gap-1 border-b text-sm" role="tablist">
-              {(
-                [
-                  ["plan", "Plan"],
-                  ["ask", "Ask AirGuard"],
-                ] as const
-              ).map(([k, label]) => (
-                <button
-                  key={k}
-                  role="tab"
-                  aria-selected={tab === k}
-                  onClick={() => setTab(k)}
-                  className={cn(
-                    "-mb-px flex items-center gap-1.5 border-b-2 px-2 pb-2 transition-colors",
-                    tab === k ? "border-foreground text-foreground" : "border-transparent text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  {k === "ask" && <SparklesIcon className="size-3.5" />}
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className={cn(tab !== "plan" && "hidden")}>
-              <AnimatePresence mode="wait">
-                {analyze.isPending ? (
-                  <motion.div key="loading" exit={{ opacity: 0 }} className="space-y-4">
-                    <Skeleton className="h-4 w-28" />
-                    <Skeleton className="h-10 w-3/4" />
-                    <Skeleton className="h-16 w-full" />
-                    <Skeleton className="h-40 w-full" />
-                  </motion.div>
-                ) : analyze.isError ? (
-                  <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
-                    <p className="flex items-center gap-2 font-medium text-destructive">
-                      <CircleAlertIcon className="size-4" /> Couldn&apos;t plan this trip
-                    </p>
-                    <p className="mt-1 text-muted-foreground">{(analyze.error as ApiError).message}</p>
-                    <Button variant="outline" size="sm" className="mt-3" onClick={() => run()}>
-                      Try again
-                    </Button>
-                  </motion.div>
-                ) : trip ? (
-                  <motion.div key={trip.trip_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-7">
-                    <Recommendation trip={trip} />
-                    <DepartureChart trip={trip} selected={selected} />
-                    <RouteList trip={trip} selected={selected} onSelect={setSelected} />
-                    <p className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">
-                      Forecast issued {istDateTime(trip.data.forecast_issued_at)} IST · model{" "}
-                      <span className="font-mono">{trip.data.model_version}</span> · {trip.data.stations - trip.data.stations_delayed} of{" "}
-                      {trip.data.stations} stations reporting live, the rest estimated.{" "}
-                      {trip.data.snapshot && "Frozen demo snapshot. "}
-                      <Link href="/method" className="underline underline-offset-4">How this is calculated</Link>
-                    </p>
-                  </motion.div>
-                ) : (
-                  <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                    {city && (
-                      <div className="rounded-lg border bg-card p-4">
-                        <p className="text-xs text-muted-foreground">Delhi right now, median of {city.total} stations</p>
-                        <p className="mt-1 font-serif text-4xl tabular">
-                          {Math.round(city.median)} <span className="font-sans text-base text-muted-foreground">µg/m³</span>
-                        </p>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                          {(city.median / WHO_24H).toFixed(1)}× the WHO 24-hour guideline. {city.live} stations reporting live.
-                        </p>
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Try a common trip</p>
-                      <ul className="space-y-1.5">
-                        {QUICK_TRIPS.map((q) => (
-                          <li key={q.label}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setFrom(q.from);
-                                setTo(q.to);
-                                setMode(q.mode);
-                                run(q.from, q.to, q.mode);
-                              }}
-                              className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2.5 text-left text-sm hover:border-foreground/25"
-                            >
-                              {q.label}
-                              <span className="text-xs text-muted-foreground">{q.mode.replace("_", "-")}</span>
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
+            <AnimatePresence mode="wait">
+              {analyze.isPending ? (
+                <motion.div key="loading" exit={{ opacity: 0 }} className="space-y-4 pt-2">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-10 w-3/4" />
+                  <Skeleton className="h-16 w-full" />
+                  <Skeleton className="h-40 w-full" />
+                </motion.div>
+              ) : analyze.isError ? (
+                <motion.div key="error" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+                  <p className="flex items-center gap-2 font-medium text-destructive">
+                    <CircleAlertIcon className="size-4" /> Couldn&apos;t plan this trip
+                  </p>
+                  <p className="mt-1 text-muted-foreground">{(analyze.error as ApiError).message}</p>
+                  <Button variant="outline" size="sm" className="mt-3" onClick={() => run()}>
+                    Try again
+                  </Button>
+                </motion.div>
+              ) : trip ? (
+                <motion.div key={trip.trip_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-7 pt-2">
+                  <Recommendation trip={trip} />
+                  <button
+                    type="button"
+                    onClick={() => setTab("ask")}
+                    className="flex w-full items-center gap-3 rounded-lg border bg-card px-3.5 py-3 text-left transition-colors hover:border-foreground/30"
+                  >
+                    <SparklesIcon className="size-4 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-medium">Questions about this trip?</span>
+                      <span className="block text-xs text-muted-foreground">Ask AirGuard why, how sure it is, or what if you leave now</span>
+                    </span>
+                    <ArrowRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  </button>
+                  <DepartureChart trip={trip} selected={selected} />
+                  <RouteList trip={trip} selected={selected} onSelect={setSelected} />
+                  <p className="border-t pt-3 text-xs leading-relaxed text-muted-foreground">
+                    Forecast issued {istDateTime(trip.data.forecast_issued_at)} IST · model{" "}
+                    <span className="font-mono">{trip.data.model_version}</span> · {trip.data.stations - trip.data.stations_delayed} of{" "}
+                    {trip.data.stations} stations reporting live, the rest estimated.{" "}
+                    {trip.data.snapshot && "Frozen demo snapshot. "}
+                    <Link href="/method" className="underline underline-offset-4">How this is calculated</Link>
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pt-2">
+                  {city && (
+                    <div className="rounded-lg border bg-card p-4">
+                      <p className="text-xs text-muted-foreground">Delhi right now, median of {city.total} stations</p>
+                      <p className="mt-1 font-serif text-4xl tabular">
+                        {Math.round(city.median)} <span className="font-sans text-base text-muted-foreground">µg/m³</span>
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {(city.median / WHO_24H).toFixed(1)}× the WHO 24-hour guideline. {city.live} stations reporting live.
+                      </p>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+                  )}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Try a common trip</p>
+                    <ul className="space-y-1.5">
+                      {QUICK_TRIPS.map((q) => (
+                        <li key={q.label}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setFrom(q.from);
+                              setTo(q.to);
+                              setMode(q.mode);
+                              run(q.from, q.to, q.mode);
+                            }}
+                            className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2.5 text-left text-sm hover:border-foreground/25"
+                          >
+                            {q.label}
+                            <span className="text-xs text-muted-foreground">{q.mode.replace("_", "-")}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-            <div className={cn("h-[min(70vh,640px)]", tab !== "ask" && "hidden")}>
-              <Assistant tripId={trip?.trip_id ?? null} className="h-full" />
+          {/* Assistant: fills the panel, message box pinned to the bottom. */}
+          <div className={cn("flex h-[78svh] min-h-0 flex-col gap-3 p-4 sm:p-5 lg:h-auto lg:flex-1", tab !== "ask" && "hidden")}>
+            <div className="flex shrink-0 items-center gap-3 rounded-lg border bg-card px-3 py-2.5">
+              {trip ? (
+                <>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">
+                      {trip.origin.name ?? "Origin"} → {trip.destination.name ?? "Destination"}
+                    </span>
+                    <span className="block text-xs text-muted-foreground">
+                      {trip.mode_label} · planned {istTime(trip.now)} IST
+                    </span>
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setTab("plan")}>
+                    Change trip
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 text-xs text-muted-foreground">
+                    Plan a trip to ask about its routes and timing, or ask a general question below.
+                  </span>
+                  <Button variant="ghost" size="sm" onClick={() => setTab("plan")}>
+                    Plan a trip
+                  </Button>
+                </>
+              )}
             </div>
+            <Assistant key={trip?.trip_id ?? "no-trip"} tripId={trip?.trip_id ?? null} className="min-h-0 flex-1" />
           </div>
         </aside>
       </div>
