@@ -8,6 +8,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 
+import numpy as np
+
 from airguard import db
 from airguard.engine import assumptions as A
 from airguard.engine.departure import decide, evaluate
@@ -94,30 +96,48 @@ PREVIEW_TTL_S = 300
 STRIP_STEP_MIN = 15
 
 
-def departure_strips(origin: dict, destination: dict, mode: str, route_id: str, window_h: float = 4) -> dict:
-    """PM2.5 along one route for every departure on the 15-minute grid: one row per departure,
-    one value per 200 m segment. This is the engine's own scenario grid, drawn as a picture."""
+def departure_strips(origin: dict, destination: dict, mode: str, route_id: str, window_h: float = 4,
+                     corridor_step_min: int = 10) -> dict:
+    """What leaving at different times means for one route.
+
+    * corridor: PM2.5 along the route (time-weighted mean over its segments) at each moment from now
+      until the last departure would arrive, every 10 minutes, with the forecast range.
+    * rows: the exposure index for each departure on the 15-minute grid (the engine's scenarios).
+    """
     fld = forecasts.current_field()
     now_ts = forecasts.reference_now(fld).timestamp()
     routes = routing.get_routes((origin["lat"], origin["lon"]), (destination["lat"], destination["lon"]), mode)
     route = next((r for r in routes if r.id == route_id), routes[0])
     p = prepare(route, fld)
+
     rows = []
     for wait in range(0, int(window_h * 60) + 1, STRIP_STEP_MIN):
         t = now_ts + wait * 60
         try:
-            s = score(p, fld, t, mode)
+            sc = score(p, fld, t, mode, with_segments=False)
         except ForecastUnavailable:
             break
-        rows.append({
-            "wait_min": wait,
-            "depart_at": datetime.fromtimestamp(t, tz=timezone.utc).isoformat(),
-            "exposure_index": s.exposure_index, "mean_pm25": s.mean_pm25, "confidence": s.confidence,
-            "pm25": [seg["pm25"] for seg in s.segments],
-            "minutes": [seg["minutes"] for seg in s.segments],
-        })
+        rows.append({"wait_min": wait, "depart_at": datetime.fromtimestamp(t, tz=timezone.utc).isoformat(),
+                     "exposure_index": sc.exposure_index, "exposure_low": sc.exposure_low,
+                     "exposure_high": sc.exposure_high, "mean_pm25": sc.mean_pm25, "confidence": sc.confidence})
+
+    lats = [g.lat for g in p.segments]
+    lons = [g.lon for g in p.segments]
+    weights = p.seg_minutes / p.seg_minutes.sum()
+    corridor = []
+    end_ts = now_ts + (rows[-1]["wait_min"] if rows else 0) * 60 + route.duration_min * 60
+    t = now_ts
+    while t <= end_ts + 1:
+        smp = fld.sample(lats, lons, [t] * len(lats), dist=p.dist)
+        if np.isnan(smp.pm25).any():
+            break
+        corridor.append({"t": datetime.fromtimestamp(t, tz=timezone.utc).isoformat(),
+                         "pm25": round(float(np.sum(smp.pm25 * weights)), 1),
+                         "low": round(float(np.sum(smp.low * weights)), 1),
+                         "high": round(float(np.sum(smp.high * weights)), 1)})
+        t += corridor_step_min * 60
     return {"route_id": route.id, "label": route.label, "distance_km": round(route.distance_km, 2),
-            "duration_min": round(route.duration_min, 1), "rows": rows}
+            "duration_min": round(route.duration_min, 1), "rows": rows, "corridor": corridor}
 
 
 def preview(origin: dict, destination: dict, mode: str, sensitivity: str, window_h: float, max_extra_min: float,

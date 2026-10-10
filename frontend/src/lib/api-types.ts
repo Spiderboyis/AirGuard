@@ -309,6 +309,17 @@ export interface components {
             /** Content */
             content: string;
         };
+        /** CorridorPoint */
+        CorridorPoint: {
+            /** T */
+            t: string;
+            /** Pm25 */
+            pm25: number;
+            /** Low */
+            low: number;
+            /** High */
+            high: number;
+        };
         /** Decision */
         Decision: {
             recommended: components["schemas"]["DepartureOption"];
@@ -662,14 +673,14 @@ export interface components {
             depart_at: string;
             /** Exposure Index */
             exposure_index: number;
+            /** Exposure Low */
+            exposure_low: number;
+            /** Exposure High */
+            exposure_high: number;
             /** Mean Pm25 */
             mean_pm25: number;
             /** Confidence */
             confidence: number;
-            /** Pm25 */
-            pm25: number[];
-            /** Minutes */
-            minutes: number[];
         };
         /** Strips */
         Strips: {
@@ -683,6 +694,8 @@ export interface components {
             duration_min: number;
             /** Rows */
             rows: components["schemas"]["StripRow"][];
+            /** Corridor */
+            corridor: components["schemas"]["CorridorPoint"][];
         };
         /** ToolCall */
         ToolCall: {

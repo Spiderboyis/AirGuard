@@ -866,6 +866,34 @@
         ],
         "title": "ChatTurn"
       },
+      "CorridorPoint": {
+        "properties": {
+          "t": {
+            "type": "string",
+            "title": "T"
+          },
+          "pm25": {
+            "type": "number",
+            "title": "Pm25"
+          },
+          "low": {
+            "type": "number",
+            "title": "Low"
+          },
+          "high": {
+            "type": "number",
+            "title": "High"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t",
+          "pm25",
+          "low",
+          "high"
+        ],
+        "title": "CorridorPoint"
+      },
       "Decision": {
         "properties": {
           "recommended": {
@@ -1936,6 +1964,14 @@
             "type": "number",
             "title": "Exposure Index"
           },
+          "exposure_low": {
+            "type": "number",
+            "title": "Exposure Low"
+          },
+          "exposure_high": {
+            "type": "number",
+            "title": "Exposure High"
+          },
           "mean_pm25": {
             "type": "number",
             "title": "Mean Pm25"
@@ -1943,20 +1979,6 @@
           "confidence": {
             "type": "number",
             "title": "Confidence"
-          },
-          "pm25": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Pm25"
-          },
-          "minutes": {
-            "items": {
-              "type": "number"
-            },
-            "type": "array",
-            "title": "Minutes"
           }
         },
         "type": "object",
@@ -1964,10 +1986,10 @@
           "wait_min",
           "depart_at",
           "exposure_index",
+          "exposure_low",
+          "exposure_high",
           "mean_pm25",
-          "confidence",
-          "pm25",
-          "minutes"
+          "confidence"
         ],
         "title": "StripRow"
       },
@@ -1995,6 +2017,13 @@
             },
             "type": "array",
             "title": "Rows"
+          },
+          "corridor": {
+            "items": {
+              "$ref": "#/components/schemas/CorridorPoint"
+            },
+            "type": "array",
+            "title": "Corridor"
           }
         },
         "type": "object",
@@ -2003,7 +2032,8 @@
           "label",
           "distance_km",
           "duration_min",
-          "rows"
+          "rows",
+          "corridor"
         ],
         "title": "Strips"
       },

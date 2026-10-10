@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 
-import { DepartureStrips } from "@/components/landing/departure-strips";
+import { RideWindow } from "@/components/landing/ride-window";
 import { RouteAnatomy } from "@/components/landing/route-anatomy";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -83,7 +83,7 @@ export function HeroFigure() {
       </div>
     );
   if (!data) return <Skeleton className="h-[420px] w-full rounded-2xl" />;
-  return <DepartureStrips data={data} />;
+  return <RideWindow data={data} />;
 }
 
 export function AnatomySection() {

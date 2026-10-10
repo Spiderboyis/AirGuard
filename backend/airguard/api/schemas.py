@@ -184,10 +184,17 @@ class StripRow(BaseModel):
     wait_min: int
     depart_at: str
     exposure_index: float
+    exposure_low: float
+    exposure_high: float
     mean_pm25: float
     confidence: float
-    pm25: list[float]
-    minutes: list[float]
+
+
+class CorridorPoint(BaseModel):
+    t: str
+    pm25: float
+    low: float
+    high: float
 
 
 class Strips(BaseModel):
@@ -196,6 +203,7 @@ class Strips(BaseModel):
     distance_km: float
     duration_min: float
     rows: list[StripRow]
+    corridor: list[CorridorPoint]
 
 
 class TripPreview(BaseModel):
