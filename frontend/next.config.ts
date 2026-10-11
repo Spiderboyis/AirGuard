@@ -12,6 +12,17 @@ const nextConfig: NextConfig = {
       },
     },
   },
+  async rewrites() {
+    const backendUrl =
+      process.env.BACKEND_API_URL ||
+      "https://xizab63jhj.execute-api.ap-northeast-2.amazonaws.com";
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

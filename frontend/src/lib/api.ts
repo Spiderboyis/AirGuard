@@ -18,7 +18,7 @@ export type StripRow = Schemas["StripRow"];
 export type Mode = TripRequest["mode"];
 export type Sensitivity = TripRequest["sensitivity"];
 
-export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "/api").replace(/\/$/, "");
 
 export class ApiError extends Error {
   constructor(
