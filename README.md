@@ -7,13 +7,14 @@
 AirGuard reads the PM2.5 forecast along every route you could take in the next few hours,
 then tells Delhi commuters which way to go and when to leave so they breathe less of it.
 
-[Quick Start](#quick-start) · [Docs Guide](#documentation-guide-start-here) · [Architecture](docs/architecture.md) · [Methodology](docs/methodology.md) · [Evidence](#evidence) · [Contributing](CONTRIBUTING.md)
+[Quick Start](#quick-start) · [Docs Guide](#documentation-guide) · [Architecture](docs/architecture.md) · [Methodology](docs/methodology.md) · [Evidence](#evidence) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
 ---
 
-## 📚 Documentation Guide (Start Here)
+<a id="documentation-guide"></a>
+## Documentation guide
 
 If you are new to the repository, here is the fastest way to find what you need:
 
@@ -130,7 +131,7 @@ Full guide, phone testing and troubleshooting: [docs/setup.md](docs/setup.md).
 | **[`frontend/`](frontend/)** | Next.js 16 web app: landing page, onboarding, trip planner, MapLibre GL map, assistant | [frontend/README.md](frontend/README.md) |
 | **[`supabase/`](supabase/)** | PostgreSQL migration history (`migrations/`) and paste-ready standalone setup (`setup.sql`) | [docs/database.md](docs/database.md) |
 | **[`contracts/`](contracts/)** | OpenAPI contract (`openapi.json`) from which frontend TypeScript types are generated | [`contracts/openapi.json`](contracts/openapi.json) |
-| **[`docs/`](docs/)** | In-depth engineering documentation, architecture, mathematical method, and decisions | [📚 Docs Roadmap](#-documentation-guide-start-here) |
+| **[`docs/`](docs/)** | In-depth engineering documentation, architecture, mathematical method, and decisions | [Documentation Guide](#documentation-guide) |
 
 ## Honest limits
 
