@@ -7,7 +7,7 @@
 AirGuard reads the PM2.5 forecast along every route you could take in the next few hours,
 then tells Delhi commuters which way to go and when to leave so they breathe less of it.
 
-[🚀 Quick Start](#quick-start) · [📚 Docs Guide](#documentation-guide-start-here) · [🏗️ Architecture](docs/architecture.md) · [🔬 Methodology](docs/methodology.md) · [📊 Evidence](#evidence) · [🤝 Contributing](CONTRIBUTING.md)
+[Quick Start](#quick-start) · [Docs Guide](#documentation-guide-start-here) · [Architecture](docs/architecture.md) · [Methodology](docs/methodology.md) · [Evidence](#evidence) · [Contributing](CONTRIBUTING.md)
 
 </div>
 
