@@ -3,9 +3,10 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased] - 2026-10-10
+## [Unreleased] - 2026-10-11
 
 ### Added
+- Model `v20261011-0550`: retrained across 76 stations on 27 Sep – 11 Oct 2026 backtest window with refreshed split-conformal calibration quantiles.
 - Landing page rebuilt around live data: a ride-window chart (forecast along the demo route with the ride
   as a window you can slide to other departures), an annotated route figure, a "won't do" list, a
   computed evidence sentence, and a CPCB-coloured scroll progress bar.

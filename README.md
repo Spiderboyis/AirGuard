@@ -7,11 +7,26 @@
 AirGuard reads the PM2.5 forecast along every route you could take in the next few hours,
 then tells Delhi commuters which way to go and when to leave so they breathe less of it.
 
-[Setup](docs/setup.md) · [How it works](docs/architecture.md) · [Method](docs/methodology.md) · [Evidence](#evidence) · [Contributing](CONTRIBUTING.md)
+[🚀 Quick Start](#quick-start) · [📚 Docs Guide](#documentation-guide-start-here) · [🏗️ Architecture](docs/architecture.md) · [🔬 Methodology](docs/methodology.md) · [📊 Evidence](#evidence) · [🤝 Contributing](CONTRIBUTING.md)
 
 </div>
 
-<!-- screenshots: docs/screenshots/*.png -->
+---
+
+## 📚 Documentation Guide (Start Here)
+
+If you are new to the repository, here is the fastest way to find what you need:
+
+| Guide | What it covers | Who it is for |
+| :--- | :--- | :--- |
+| **[Local Setup Guide](docs/setup.md)** | Step-by-step environment setup (Python 3.12, Node 20+, Supabase, Ollama), API keys, phone testing, and troubleshooting | Developers getting the project running locally |
+| **[Architecture & Data Flow](docs/architecture.md)** | System components, Mermaid flowcharts, hourly ingestion pipeline, request path for trip analysis, and code map | Engineers exploring how the frontend, API, ML, and agent connect |
+| **[Methodology & Assumptions](docs/methodology.md)** | Mathematical formulation: exposure dose index ($\sum C_i \times t_i \times m$), 200 m IDW spatial field, conformal interval calibration, and utility decision rules | Data scientists and researchers examining modeling rigor |
+| **[Database & Migrations](docs/database.md)** | PostgreSQL / Supabase schema, table definitions, migration workflow, RLS security model, and `setup.sql` | Developers working with data persistence or hosted Supabase |
+| **[Design Decision Log](docs/decisions.md)** | 14 Architectural Decision Records (ADRs) explaining technical trade-offs (e.g. psycopg vs REST API, CPCB feed delay handling, small model steering) | Anyone wanting the context and rationale behind choices |
+| **[Contributing Guidelines](CONTRIBUTING.md)** | Code style, git workflow, testing requirements, and quality checks | Contributors wanting to submit pull requests |
+
+---
 
 ## The problem
 
@@ -26,11 +41,11 @@ riders on two-wheelers, people with asthma, and parents on the school run.
 
 - **Compares real routes** for walking, cycling, two-wheelers or a car, each coloured every 200 m by
   forecast PM2.5 along the way.
-- **Finds a better time to leave**, checking every 15 minutes over the next few hours.
+- **Finds a better time to leave**, checking every 15 minutes over the next few hours (up to 6 hours ahead).
 - **Fits your limits.** You say how sensitive you are and how much extra time you'll accept; it never
   suggests more. Sensitivity changes the trade-off, never the pollution numbers.
 - **Explains itself.** An assistant built on the **Strands Agents SDK** answers follow-up questions using
-  only numbers its tools return. Every tool call is visible, and every number is checked before you see it.
+  only numbers its tools return. Every tool call is visible, and every number is verified before you see it.
 - **Says how sure it is.** Every exposure figure carries a forecast range and a confidence score; stations
   whose feeds are delayed are marked as estimates.
 
@@ -47,35 +62,38 @@ flowchart LR
   F & G --> H["Web app<br/>map · chart · assistant"]
 ```
 
-1. **Forecast.** Each hour, one XGBoost model per horizon forecasts PM2.5 at ~75 stations from their recent
+1. **Forecast.** Each hour, one XGBoost model per horizon forecasts PM2.5 at ~76 stations from their recent
    readings, neighbouring stations, the CAMS global model, weather (incl. boundary-layer height) and crop
    fires detected upwind.
 2. **Score.** Each candidate route is cut into 200 m segments; each segment gets the forecast for the minute
-   you'd reach it, blended from the nearest stations.
+   you'd reach it, blended from the nearest stations via Inverse-Distance Weighting (IDW).
 3. **Decide.** Every route × every 15-minute departure is scored; the recommendation is the lowest-exposure
-   option whose exposure saving is worth its extra time to you.
-4. **Explain.** The assistant reads the saved analysis through tools and explains the trade-off.
+   option whose exposure saving is worth its extra time to you under your profile limits.
+4. **Explain.** The assistant reads the saved analysis through tools and explains the trade-off with guaranteed
+   number grounding.
 
 Details and every assumption: [docs/methodology.md](docs/methodology.md).
 
 ## Evidence
 
-The forecast is tested on the most recent two weeks (25 Sep – 9 Oct 2026), which it never saw in
-training, at 75 stations. Mean absolute error in µg/m³, lower is better:
+The forecast is tested on the most recent two weeks (27 Sep – 11 Oct 2026), which it never saw in
+training, at 76 stations. Mean absolute error in µg/m³, lower is better:
 
 | Horizon | AirGuard | Last reading | Station's usual for that hour | CAMS global model |
 | --- | ---: | ---: | ---: | ---: |
-| +1 h | **7.3** | 7.9 | 47.3 | 29.5 |
-| +3 h | **12.3** | 15.2 | 47.3 | 29.6 |
-| +6 h | **14.1** | 20.1 | 47.4 | 29.7 |
-| +12 h | **16.1** | 24.2 | 46.6 | 29.6 |
-| +24 h | **16.7** | 17.2 | 45.7 | 29.5 |
+| +1 h | **7.6** | 8.0 | 42.6 | 29.6 |
+| +3 h | **12.6** | 15.8 | 42.3 | 29.6 |
+| +6 h | **14.5** | 21.0 | 42.2 | 29.7 |
+| +12 h | **16.5** | 26.1 | 41.2 | 29.9 |
+| +24 h | **17.3** | 18.3 | 40.0 | 30.2 |
+
+*Baselines: **Last reading** assumes conditions persist unchanged; **Station's usual** is the historical average for that hour of day; **CAMS** is the raw European Copernicus global model (~45 km resolution).*
 
 During a network-wide CPCB feed outage (every CPCB station hidden, only independent sensors left), the
-model still estimates each station within **15.6–20.4 µg/m³** MAE, against 29.5–29.9 for raw CAMS. The
-80% forecast ranges contained the true value 74–82% of the time. Model `v20261009-1001`; full results on
-the app's **Evidence** page. These measure the station forecast; values along a route are interpolated and
-carry their own confidence.
+model still estimates each station within **16.5–20.9 µg/m³** MAE, against 29.7–30.8 for raw CAMS. The
+80% forecast ranges contained the true value 71–85% of the time across the first 12 hours. Model
+`v20261011-0550`; full results on the app's **Evidence** page. These measure the station forecast; values
+along a route are interpolated and carry their own confidence.
 
 ## Quick start
 
@@ -105,14 +123,14 @@ Full guide, phone testing and troubleshooting: [docs/setup.md](docs/setup.md).
 
 ## Project layout
 
-```
-backend/airguard/   engine/ (pure exposure maths) · ml/ · ingestion/ · services/ · agent/ · api/ · jobs/
-backend/tests/      engine and guard unit tests
-frontend/           Next.js app (landing, onboarding, planner, evidence, method)
-supabase/           migrations/ (source of truth) · setup.sql (generated, paste-ready)
-contracts/          openapi.json (frontend types are generated from it)
-docs/               architecture, methodology, setup, database, decisions
-```
+| Directory | What lives there | Key Documentation |
+| :--- | :--- | :--- |
+| **[`backend/`](backend/)** | Exposure maths, XGBoost forecasting, ingestion pipelines, FastAPI service, and Strands agent | [backend/README.md](backend/README.md) |
+| **[`backend/tests/`](backend/tests/)** | Unit tests for exposure calculations and Number Guard verification | [tests/test_engine.py](backend/tests/test_engine.py) |
+| **[`frontend/`](frontend/)** | Next.js 16 web app: landing page, onboarding, trip planner, MapLibre GL map, assistant | [frontend/README.md](frontend/README.md) |
+| **[`supabase/`](supabase/)** | PostgreSQL migration history (`migrations/`) and paste-ready standalone setup (`setup.sql`) | [docs/database.md](docs/database.md) |
+| **[`contracts/`](contracts/)** | OpenAPI contract (`openapi.json`) from which frontend TypeScript types are generated | [`contracts/openapi.json`](contracts/openapi.json) |
+| **[`docs/`](docs/)** | In-depth engineering documentation, architecture, mathematical method, and decisions | [📚 Docs Roadmap](#-documentation-guide-start-here) |
 
 ## Honest limits
 
