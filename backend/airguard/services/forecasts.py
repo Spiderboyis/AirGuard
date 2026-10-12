@@ -67,7 +67,13 @@ def reference_now(fld: ForecastField) -> datetime:
     frozen = fld.meta.get("now")
     if frozen:
         return datetime.fromisoformat(frozen)
-    return datetime.now(timezone.utc)
+    cov_start, cov_end = fld.coverage
+    real_now = datetime.now(timezone.utc)
+    if fld.stations and cov_end > cov_start:
+        real_ts = real_now.timestamp()
+        if real_ts < cov_start or real_ts > cov_end - 3600:
+            return datetime.fromtimestamp(cov_start, tz=timezone.utc)
+    return real_now
 
 
 def station_summaries(fld: ForecastField) -> list[dict]:
